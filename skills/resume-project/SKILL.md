@@ -30,7 +30,10 @@ checkout and start again.
 4. **Reconcile `code/` against the manifest.** For each repo in
    `PROJECT.md`:
    - Missing clone → `git clone --filter=blob:none <remote> code/<name>/main`.
-   - For each active handoff bound to a worktree that does not exist:
+   - A handoff without a `worktree:` frontmatter key is unbound (setup
+     or docs-only work); skip worktree reconciliation for it.
+   - For each active handoff whose `worktree:` names a worktree that
+     does not exist:
      if its branch exists on the remote, offer to recreate it with
      `$CC/bin/wt-new <repo> <task>`; otherwise flag it to the user —
      the work may be lost or already merged.

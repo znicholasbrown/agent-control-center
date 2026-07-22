@@ -93,6 +93,12 @@ or `/start-project` to begin something new.
   durable learnings to global memory; deletes `code/`; marks the project
   done.
 
+Worktrees are created per task with `bin/wt-new <repo> <task-slug>`. It
+binds the task's handoff to the new worktree (frontmatter `repo`,
+`branch`, `worktree`) and heals a legacy `worktree: none` binding. A
+handoff without a `worktree:` key is unbound — normal for setup and
+docs-only tasks.
+
 ## Worktree isolation
 
 Agents working in the wrong worktree is the failure mode this repo is
