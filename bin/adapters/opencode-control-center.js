@@ -4,12 +4,22 @@
 // Fails open if the guard script is missing so a broken install never
 // bricks a session.
 import { execFileSync } from "node:child_process"
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 
-const CC_ROOT =
-  process.env.AGENT_CONTROL_CENTER ?? join(homedir(), "projects", "agent-control-center")
+// Resolution order: env override, the pointer file written by bin/link.sh,
+// then the conventional location.
+function findRoot() {
+  if (process.env.AGENT_CONTROL_CENTER) return process.env.AGENT_CONTROL_CENTER
+  try {
+    return readFileSync(join(homedir(), ".config", "agent-control-center", "root"), "utf8").trim()
+  } catch {
+    return join(homedir(), "projects", "agent-control-center")
+  }
+}
+
+const CC_ROOT = findRoot()
 const GUARD = join(CC_ROOT, "bin", "guard-path.sh")
 
 const MODES = {

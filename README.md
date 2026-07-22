@@ -12,12 +12,29 @@ directory tree, so any session launched under `projects/` inherits the
 global rules. Claude Code reads the same file through the one-line
 `CLAUDE.md` shim.
 
-## Quickstart (new machine)
+## Use as a template
+
+This repository is designed to be a GitHub template. To create your own
+control center:
+
+1. Click "Use this template" on GitHub (or fork/copy the files).
+2. Clone your new repo anywhere you like — the conventional location is
+   `~/projects/agent-control-center`, but nothing depends on it.
+3. Run `./bin/bootstrap.sh`. It records the checkout location in
+   `~/.config/agent-control-center/root` (skills and plugins resolve the
+   repo through that pointer) and wires up the installed agent CLIs.
+4. Make it yours: edit `guidelines/` to your taste, and adjust
+   `AGENTS.md` if your machine-sharing or commit rules differ.
+
+One control center per machine — the pointer file is a singleton by
+design.
+
+## Quickstart (each additional machine)
 
 ```sh
-git clone git@github.com:znicholasbrown/agent-control-center.git ~/projects/agent-control-center
+git clone <your-control-center-remote> ~/projects/agent-control-center
 cd ~/projects/agent-control-center
-./bin/bootstrap.sh   # checks deps, wires hooks + links (idempotent)
+./bin/bootstrap.sh   # checks deps, writes the pointer, wires hooks + links (idempotent)
 ```
 
 Then, in any agent session: `/resume-project` to pick up existing work,

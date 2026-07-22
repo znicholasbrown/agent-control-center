@@ -12,6 +12,12 @@ set -euo pipefail
 CC_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 say() { echo "link: $1"; }
 
+# ---- Pointer file: how skills and plugins find this repo ------------------
+# One control center per machine, wherever it is cloned.
+mkdir -p "$HOME/.config/agent-control-center"
+echo "$CC_ROOT" >"$HOME/.config/agent-control-center/root"
+say "pointer written: ~/.config/agent-control-center/root -> $CC_ROOT"
+
 # ---- Claude Code: global import -------------------------------------------
 CLAUDE_DIR="$HOME/.claude"
 CLAUDE_MD="$CLAUDE_DIR/CLAUDE.md"

@@ -5,7 +5,10 @@ description: Start a new project in the agent-control-center - scaffolds the pro
 
 # /start-project
 
-Control center root: `~/projects/agent-control-center` (called `$CC` below).
+Resolve the control-center root first (called `$CC` below):
+`CC=$(cat ~/.config/agent-control-center/root)`
+If the pointer file is missing, run `bin/bootstrap.sh` from the
+control-center checkout and start again.
 
 ## Steps
 
