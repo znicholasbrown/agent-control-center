@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(~/.config/agent-control-center/resolve)",
+      "Bash(~/.config/agent-control-center/resolve *)"
+    ]
+  }
+}

@@ -117,9 +117,23 @@ if command -v jq >/dev/null 2>&1; then
     }] |
     .hooks.SessionEnd = ((.hooks.SessionEnd // []) | map(select(ours | not))) + [$roots[] | {
       hooks: [{type: "command", command: (. + "/bin/sync.sh push")}]
-    }]
+    }] |
+    # Routine helper commands run promptless. Mutating forms
+    # (wt-prune --apply, sync.sh push) stay behind the prompt.
+    # `unique` makes the merge idempotent; it also sorts the list.
+    .permissions //= {} |
+    .permissions.allow = ((.permissions.allow // []) + [
+      "Bash(~/.config/agent-control-center/resolve)",
+      "Bash(~/.config/agent-control-center/resolve *)"
+    ] + [$roots[] |
+      "Bash(" + . + "/bin/wt-ls)",
+      "Bash(" + . + "/bin/wt-ls *)",
+      "Bash(" + . + "/bin/wt-new *)",
+      "Bash(" + . + "/bin/wt-prune)",
+      "Bash(" + . + "/bin/sync.sh pull)"
+    ] | unique)
   ' "$SETTINGS.bak" >"$SETTINGS"
-  say "hooks registered for all centers (backup: settings.json.bak)"
+  say "hooks + allow rules registered for all centers (backup: settings.json.bak)"
 else
   say "SKIPPED hooks — jq not installed (brew install jq, then re-run)"
 fi
