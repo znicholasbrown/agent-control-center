@@ -1,0 +1,4 @@
+# Identity of this control center. The name registers this checkout in
+# ~/.config/agent-control-center/centers/ and must be unique per machine.
+# Set it with: ./bin/bootstrap.sh --name <name>
+name=default

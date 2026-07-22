@@ -20,22 +20,45 @@ control center:
 1. Click "Use this template" on GitHub (or fork/copy the files).
 2. Clone your new repo anywhere you like — the conventional location is
    `~/projects/agent-control-center`, but nothing depends on it.
-3. Run `./bin/bootstrap.sh`. It records the checkout location in
-   `~/.config/agent-control-center/root` (skills and plugins resolve the
-   repo through that pointer) and wires up the installed agent CLIs.
+3. Run `./bin/bootstrap.sh --name <name>`. The name identifies this
+   center in `~/.config/agent-control-center/centers/` and must be
+   unique per machine. It also gets written to the committed
+   `.control-center` file, so every machine that clones this center
+   uses the same name.
 4. Make it yours: edit `guidelines/` to your taste, and adjust
    `AGENTS.md` if your machine-sharing or commit rules differ.
 
-One control center per machine — the pointer file is a singleton by
-design.
+## Multiple control centers
+
+You can run several centers on one machine (say, `work` and
+`personal`), each created from this template with its own name:
+
+- **Resolution is contextual.** Skills and scripts resolve "which
+  center am I in" by walking up from the current directory to the
+  nearest `.control-center` marker. The registry's default center (set
+  with `bootstrap.sh --default`, shown in
+  `~/.config/agent-control-center/default`) is used only for sessions
+  outside every center.
+- **Guards compose.** Every registered center's path guard runs in
+  every session, so worktrees in all centers stay protected no matter
+  where you work.
+- **Global rule imports go to the default center only** (`~/.claude/CLAUDE.md`
+  and opencode's global `AGENTS.md`). A session inside a non-default
+  center still gets that center's rules through normal `AGENTS.md`
+  directory walk-up.
+- **Sync covers all centers.** Session hooks pull and push every
+  registered center's docs.
 
 ## Quickstart (each additional machine)
 
 ```sh
 git clone <your-control-center-remote> ~/projects/agent-control-center
 cd ~/projects/agent-control-center
-./bin/bootstrap.sh   # checks deps, writes the pointer, wires hooks + links (idempotent)
+./bin/bootstrap.sh   # checks deps, registers the center, wires hooks + links (idempotent)
 ```
+
+The name travels in the committed `.control-center` file, so no
+`--name` is needed on additional machines.
 
 Then, in any agent session: `/resume-project` to pick up existing work,
 or `/start-project` to begin something new.

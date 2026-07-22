@@ -6,9 +6,11 @@ description: Finish a control-center project - verifies nothing is unpushed, dis
 # /finish-project
 
 Resolve the control-center root first (called `$CC` below):
-`CC=$(cat ~/.config/agent-control-center/root)`
-If the pointer file is missing, run `bin/bootstrap.sh` from the
-control-center checkout and start again.
+`CC=$(~/.config/agent-control-center/resolve)`
+This picks the center you are working inside (nearest `.control-center`
+marker walking up from the current directory), else the machine default.
+If the resolver is missing, run `bin/bootstrap.sh` from a control-center
+checkout and start again.
 
 ## Steps
 

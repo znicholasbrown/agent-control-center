@@ -1,26 +1,32 @@
 // opencode plugin adapter for the control-center path guard.
 // Symlinked into ~/.config/opencode/plugin/ by bin/link.sh.
-// Delegates to bin/guard-path.sh so the rules live in exactly one place.
-// Fails open if the guard script is missing so a broken install never
+// Registry-aware: runs the guard of EVERY registered control center, so
+// each center's worktrees are protected no matter where the session
+// runs. Delegates to bin/guard-path.sh so the rules live in one place.
+// Fails open if a guard script is missing so a broken install never
 // bricks a session.
 import { execFileSync } from "node:child_process"
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 
-// Resolution order: env override, the pointer file written by bin/link.sh,
-// then the conventional location.
-function findRoot() {
-  if (process.env.AGENT_CONTROL_CENTER) return process.env.AGENT_CONTROL_CENTER
+function centerRoots() {
+  const roots = []
+  if (process.env.AGENT_CONTROL_CENTER) roots.push(process.env.AGENT_CONTROL_CENTER)
+  const registry = join(homedir(), ".config", "agent-control-center", "centers")
   try {
-    return readFileSync(join(homedir(), ".config", "agent-control-center", "root"), "utf8").trim()
+    for (const name of readdirSync(registry)) {
+      try {
+        roots.push(readFileSync(join(registry, name), "utf8").trim())
+      } catch {
+        // unreadable entry — skip
+      }
+    }
   } catch {
-    return join(homedir(), "projects", "agent-control-center")
+    // no registry yet — bootstrap hasn't run
   }
+  return [...new Set(roots)]
 }
-
-const CC_ROOT = findRoot()
-const GUARD = join(CC_ROOT, "bin", "guard-path.sh")
 
 const MODES = {
   read: "read",
@@ -36,21 +42,25 @@ const MODES = {
 export const ControlCenterGuard = async ({ directory }) => ({
   "tool.execute.before": async (input, output) => {
     const mode = MODES[input.tool]
-    if (!mode || !existsSync(GUARD)) return
+    if (!mode) return
 
     const args = output.args ?? {}
     const target = mode === "bash" ? args.command : (args.filePath ?? args.path)
     if (!target) return
 
-    try {
-      execFileSync(GUARD, [mode, directory ?? process.cwd(), String(target)], {
-        stdio: ["ignore", "ignore", "pipe"],
-      })
-    } catch (error) {
-      if (error?.status === 2) {
-        throw new Error(String(error.stderr ?? "blocked by control-center guard"))
+    for (const root of centerRoots()) {
+      const guard = join(root, "bin", "guard-path.sh")
+      if (!existsSync(guard)) continue
+      try {
+        execFileSync(guard, [mode, directory ?? process.cwd(), String(target)], {
+          stdio: ["ignore", "ignore", "pipe"],
+        })
+      } catch (error) {
+        if (error?.status === 2) {
+          throw new Error(String(error.stderr ?? "blocked by control-center guard"))
+        }
+        // Any other guard failure fails open.
       }
-      // Any other guard failure fails open.
     }
   },
 
