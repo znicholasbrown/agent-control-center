@@ -54,7 +54,10 @@ if git -C "$MAIN" show-ref --verify --quiet "refs/heads/$TASK"; then
 elif git -C "$MAIN" show-ref --verify --quiet "refs/remotes/origin/$TASK"; then
   git -C "$MAIN" worktree add --track -b "$TASK" "$WT" "origin/$TASK"
 elif git -C "$MAIN" show-ref --verify --quiet "refs/remotes/origin/$DEFAULT_BRANCH"; then
-  git -C "$MAIN" worktree add -b "$TASK" "$WT" "origin/$DEFAULT_BRANCH"
+  # --no-track: an inherited origin/<default> upstream makes `git push`
+  # fail under push.default=simple; with no upstream the first push can
+  # target the same-name branch (push.autoSetupRemote).
+  git -C "$MAIN" worktree add --no-track -b "$TASK" "$WT" "origin/$DEFAULT_BRANCH"
 else
   git -C "$MAIN" worktree add -b "$TASK" "$WT" "$DEFAULT_BRANCH"
 fi
