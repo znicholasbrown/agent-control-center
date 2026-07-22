@@ -35,10 +35,13 @@ You can run several centers on one machine (say, `work` and
 
 - **Resolution is contextual.** Skills and scripts resolve "which
   center am I in" by walking up from the current directory to the
-  nearest `.control-center` marker. The registry's default center (set
+  nearest `.control-center` marker that is registered in
+  `~/.config/agent-control-center/centers/`. Unregistered markers are
+  skipped — a clone of this template under a project's `code/` tree
+  must not capture the walk-up. The registry's default center (set
   with `bootstrap.sh --default`, shown in
   `~/.config/agent-control-center/default`) is used only for sessions
-  outside every center.
+  outside every registered center.
 - **Guards compose.** Every registered center's path guard runs in
   every session, so worktrees in all centers stay protected no matter
   where you work.
@@ -101,7 +104,11 @@ built against. Three layers:
    repo-relative paths in docs, `main` is read-only).
 3. **Mechanical** — `bin/guard-path.sh` blocks any file operation that
    resolves into a foreign worktree, wired as a Claude Code PreToolUse
-   hook and an opencode `tool.execute.before` plugin.
+   hook and an opencode `tool.execute.before` plugin. In bash commands
+   it vets both absolute and relative paths, and treats paths in
+   mutating commands (`rm`, `mv`, `sed -i`, redirects, …) as writes,
+   so `main` stays read-only. A `cd` to a worktree root is allowed:
+   that is how a session rebinds its workspace to a task worktree.
 
 ## Sync
 
