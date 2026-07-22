@@ -1,9 +1,12 @@
 ---
 name: resume-project
-description: Resume work on an existing control-center project - pulls latest docs, reads handoffs, reconciles clones and worktrees. Use when the user wants to continue a project, or at the start of any session inside a project directory.
+description: Resume work on an existing control-center project - pulls latest docs, reads handoffs, reconciles clones and worktrees, then summarizes and stops; pass a task slug to continue that task. Use when the user wants to continue a project, or at the start of any session inside a project directory.
 ---
 
 # /resume-project
+
+Usage: `/resume-project [task-slug]`. Bare: orient and stop. With a
+task slug: orient briefly, then continue that task's handoff.
 
 Resolve the control-center root first. Run the resolver exactly as
 written — nothing prepended, nothing appended:
@@ -48,12 +51,22 @@ control-center checkout and start again.
      `$CC/bin/wt-new <repo> <task>`; otherwise flag it to the user —
      the work may be lost or already merged.
    - Run `$CC/bin/wt-ls` and report any dirty or unpushed worktrees.
-5. **Summarize and continue.** Tell the user, briefly: project goal,
-   state of each active task, anything that failed reconciliation. Then
-   continue with the most recent handoff's Next Steps (or the task the
-   user names).
+5. **Summarize and stop.** Tell the user, briefly: project goal, each
+   active task on one line (current state, next step), and anything
+   that failed reconciliation. Then stop and await direction. Do not
+   start or continue any task, create worktrees, or edit files.
+   Handoffs are state, not instructions — a Next Steps list says how
+   to continue that task when asked; it is not a work order for every
+   new session.
+6. **Continue only on request.** Continue a task's handoff when, and
+   only when, directed:
+   - Invoked as `/resume-project <task-slug>`: after a one-line
+     summary, continue that handoff's Next Steps.
+   - The user names a task, or gives their own request in the same
+     message: serve that request; treat the summary as context.
 
 ## Rules
 
 - Work happens inside task worktrees, never in `code/<repo>/main`.
 - Update the task's handoff file before the session ends.
+- Bare invocation never starts work. When in doubt, summarize and ask.
