@@ -87,7 +87,8 @@ or `/start-project` to begin something new.
   each repo into `code/<repo>/main`, registers it in `projects/INDEX.md`.
 - **/resume-project** — pulls this repo first (latest handoffs from any
   machine), reads the manifest + handoffs + notes, reconciles `code/`
-  (re-clones anything missing), continues at Next Steps.
+  (re-clones anything missing), and summarizes. Continues a task's
+  Next Steps only when the task is named: `/resume-project <task>`.
 - **/finish-project** — refuses to run if any worktree has uncommitted or
   unpushed work; distills handoffs into the PROJECT.md outcome; promotes
   durable learnings to global memory; deletes `code/`; marks the project
