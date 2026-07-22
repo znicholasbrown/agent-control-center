@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# wt-prune — remove finished task worktrees.
+#
+# Usage: wt-prune [--apply] [--force] [--project <slug>]
+#   Default is a dry run: lists candidates and what blocks them.
+#   --apply removes worktrees that are clean, pushed, and merged (or whose
+#   remote branch is gone). --force also removes unmerged-but-clean ones.
+#   Dirty or unpushed worktrees are never removed.
+set -euo pipefail
+
+CC_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+APPLY=0; FORCE=0; PROJECT=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --apply) APPLY=1; shift ;;
+    --force) FORCE=1; shift ;;
+    --project) PROJECT="${2:-}"; shift 2 ;;
+    *) echo "usage: wt-prune [--apply] [--force] [--project <slug>]" >&2; exit 1 ;;
+  esac
+done
+
+if [ -n "$PROJECT" ]; then
+  PROJ_DIR="$CC_ROOT/projects/$PROJECT"
+else
+  PROJ_DIR="$PWD"
+  while [ "$PROJ_DIR" != "/" ] && [ ! -f "$PROJ_DIR/PROJECT.md" ]; do
+    PROJ_DIR="$(dirname "$PROJ_DIR")"
+  done
+fi
+[ -f "$PROJ_DIR/PROJECT.md" ] || { echo "error: not inside a project; use --project <slug>" >&2; exit 1; }
+
+for repo_dir in "$PROJ_DIR"/code/*/; do
+  [ -d "$repo_dir/main" ] || continue
+  repo="$(basename "$repo_dir")"
+  main="$repo_dir/main"
+  git -C "$main" fetch --prune --quiet 2>/dev/null || true
+  default="$(git -C "$main" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || true)"
+  default="${default:-main}"
+
+  for wt in "$repo_dir"*/; do
+    name="$(basename "$wt")"
+    [ "$name" = "main" ] && continue
+    git -C "$wt" rev-parse --git-dir >/dev/null 2>&1 || continue
+
+    branch="$(git -C "$wt" branch --show-current 2>/dev/null || echo '')"
+    dirty="$(git -C "$wt" status --porcelain 2>/dev/null | wc -l | tr -d ' ')"
+    unpushed="$(git -C "$wt" rev-list --count @{upstream}..HEAD 2>/dev/null || echo '?')"
+    merged=no
+    if git -C "$main" merge-base --is-ancestor "$branch" "origin/$default" 2>/dev/null; then
+      merged=yes
+    elif ! git -C "$main" show-ref --verify --quiet "refs/remotes/origin/$branch" \
+      && [ "$unpushed" = "0" ]; then
+      merged=remote-gone
+    fi
+
+    label="$repo/$name (branch $branch, dirty:$dirty, unpushed:$unpushed, merged:$merged)"
+
+    if [ "$dirty" != "0" ] || { [ "$unpushed" != "0" ] && [ "$unpushed" != "?" ]; }; then
+      echo "keep   $label — has local-only work"
+      continue
+    fi
+    if [ "$merged" = "no" ] && [ "$FORCE" != "1" ]; then
+      echo "keep   $label — not merged (use --force to remove clean unmerged)"
+      continue
+    fi
+
+    if [ "$APPLY" = "1" ]; then
+      git -C "$main" worktree remove "$wt" && echo "removed $label"
+      git -C "$main" branch -D "$branch" 2>/dev/null || true
+    else
+      echo "REMOVE $label (dry run — pass --apply)"
+    fi
+  done
+  git -C "$main" worktree prune 2>/dev/null || true
+done

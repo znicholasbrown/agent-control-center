@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# wt-ls — list worktrees across projects with their state.
+#
+# Usage: wt-ls [--all]
+#   Inside a project: lists that project's worktrees.
+#   --all (or outside a project): lists every project's worktrees.
+set -euo pipefail
+
+CC_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+SCOPE_ALL=0
+[ "${1:-}" = "--all" ] && SCOPE_ALL=1
+
+PROJ_DIR="$PWD"
+while [ "$PROJ_DIR" != "/" ] && [ ! -f "$PROJ_DIR/PROJECT.md" ]; do
+  PROJ_DIR="$(dirname "$PROJ_DIR")"
+done
+[ -f "$PROJ_DIR/PROJECT.md" ] || SCOPE_ALL=1
+
+list_project() {
+  local proj_dir="$1" slug
+  slug="$(basename "$proj_dir")"
+  [ -d "$proj_dir/code" ] || return 0
+  for wt in "$proj_dir"/code/*/*/; do
+    [ -d "$wt" ] || continue
+    git -C "$wt" rev-parse --git-dir >/dev/null 2>&1 || continue
+    local repo branch dirty ahead
+    repo="$(basename "$(dirname "$wt")")"
+    branch="$(git -C "$wt" branch --show-current 2>/dev/null || echo '?')"
+    dirty="$(git -C "$wt" status --porcelain 2>/dev/null | wc -l | tr -d ' ')"
+    ahead="$(git -C "$wt" rev-list --count @{upstream}..HEAD 2>/dev/null || echo '-')"
+    printf "%-24s %-16s %-28s dirty:%-4s unpushed:%s\n" \
+      "$slug" "$repo" "$branch" "$dirty" "$ahead"
+  done
+}
+
+if [ "$SCOPE_ALL" = 1 ]; then
+  for p in "$CC_ROOT"/projects/*/; do
+    [ -f "$p/PROJECT.md" ] && list_project "$p"
+  done
+else
+  list_project "$PROJ_DIR"
+fi

@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# wt-new — create a task worktree and its handoff file.
+#
+# Usage: wt-new <repo> <task-slug> [--project <slug>]
+#   Run from anywhere inside a project directory, or pass --project.
+#   Creates projects/<slug>/code/<repo>/<task-slug> on branch <task-slug>,
+#   copies untracked .env* files from main, and scaffolds
+#   handoffs/<task-slug>.md if it does not exist.
+set -euo pipefail
+
+CC_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+usage() { echo "usage: wt-new <repo> <task-slug> [--project <slug>]" >&2; exit 1; }
+
+REPO="${1:-}"; TASK="${2:-}"; shift 2 2>/dev/null || usage
+PROJECT=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --project) PROJECT="${2:-}"; shift 2 ;;
+    *) usage ;;
+  esac
+done
+[ -z "$REPO" ] || [ -z "$TASK" ] && usage
+
+# Locate the project root: --project flag, or walk up from cwd to PROJECT.md.
+if [ -n "$PROJECT" ]; then
+  PROJ_DIR="$CC_ROOT/projects/$PROJECT"
+else
+  PROJ_DIR="$PWD"
+  while [ "$PROJ_DIR" != "/" ] && [ ! -f "$PROJ_DIR/PROJECT.md" ]; do
+    PROJ_DIR="$(dirname "$PROJ_DIR")"
+  done
+fi
+[ -f "$PROJ_DIR/PROJECT.md" ] || { echo "error: not inside a project (no PROJECT.md found); use --project <slug>" >&2; exit 1; }
+SLUG="$(basename "$PROJ_DIR")"
+
+MAIN="$PROJ_DIR/code/$REPO/main"
+if [ ! -d "$MAIN" ]; then
+  echo "error: $MAIN does not exist. Repos in this project:" >&2
+  ls "$PROJ_DIR/code" 2>/dev/null >&2 || echo "  (none — run /start-project or clone per PROJECT.md)" >&2
+  exit 1
+fi
+
+WT="$PROJ_DIR/code/$REPO/$TASK"
+[ -e "$WT" ] && { echo "error: $WT already exists" >&2; exit 1; }
+
+DEFAULT_BRANCH="$(git -C "$MAIN" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || true)"
+DEFAULT_BRANCH="${DEFAULT_BRANCH:-main}"
+
+git -C "$MAIN" fetch origin --quiet 2>/dev/null || echo "warn: fetch failed; branching from local $DEFAULT_BRANCH" >&2
+
+if git -C "$MAIN" show-ref --verify --quiet "refs/heads/$TASK"; then
+  git -C "$MAIN" worktree add "$WT" "$TASK"
+elif git -C "$MAIN" show-ref --verify --quiet "refs/remotes/origin/$TASK"; then
+  git -C "$MAIN" worktree add --track -b "$TASK" "$WT" "origin/$TASK"
+elif git -C "$MAIN" show-ref --verify --quiet "refs/remotes/origin/$DEFAULT_BRANCH"; then
+  git -C "$MAIN" worktree add -b "$TASK" "$WT" "origin/$DEFAULT_BRANCH"
+else
+  git -C "$MAIN" worktree add -b "$TASK" "$WT" "$DEFAULT_BRANCH"
+fi
+
+# Untracked env files don't travel with worktrees; copy them from main.
+for f in "$MAIN"/.env "$MAIN"/.env.*; do
+  [ -f "$f" ] && cp "$f" "$WT/$(basename "$f")" && echo "copied $(basename "$f")"
+done
+
+HANDOFF="$PROJ_DIR/handoffs/$TASK.md"
+if [ ! -f "$HANDOFF" ]; then
+  mkdir -p "$PROJ_DIR/handoffs"
+  sed -e "s|{{TASK_SLUG}}|$TASK|g" \
+      -e "s|{{PROJECT_SLUG}}|$SLUG|g" \
+      -e "s|{{REPO_NAME}}|$REPO|g" \
+      -e "s|{{BRANCH}}|$TASK|g" \
+      -e "s|{{DATE}}|$(date +%F)|g" \
+      "$CC_ROOT/templates/handoff.md" >"$HANDOFF"
+  echo "created handoff: $HANDOFF"
+fi
+
+echo ""
+echo "worktree ready: $WT"

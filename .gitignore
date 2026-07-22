@@ -1,0 +1,12 @@
+# Machine-local code checkouts. Each project's code/ directory holds full
+# git clones and worktrees. They are disposable; the committed project docs
+# and the remotes are the durable record.
+projects/*/code/
+
+# Scratch and OS noise
+.tmp/
+.DS_Store
+
+# Sync machinery
+.sync.lock/
+.sync.log
