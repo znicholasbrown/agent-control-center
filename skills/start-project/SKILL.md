@@ -39,6 +39,9 @@ checkout and start again.
    two sentences). Write it into PROJECT.md's Goal section, and create
    `handoffs/project-setup.md` from the handoff template with the goal
    and the user's first concrete next steps.
+   The setup handoff is unbound: fill only the task, project, and date
+   placeholders. Do not add `repo:`, `branch:`, or `worktree:` lines —
+   `bin/wt-new` adds them when a worktree is created for a task.
 7. **Sync.** Run `$CC/bin/sync.sh push`. This commits and pushes ONLY
    control-center docs (`projects/`, `memory/`) — this narrow scope is
    sanctioned; never commit anything under `code/`.

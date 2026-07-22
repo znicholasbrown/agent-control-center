@@ -1,9 +1,6 @@
 ---
 task: {{TASK_SLUG}}
 project: {{PROJECT_SLUG}}
-repo: {{REPO_NAME}}
-branch: {{BRANCH}}
-worktree: code/{{REPO_NAME}}/{{TASK_SLUG}}
 status: active
 updated: {{DATE}}
 ---

@@ -5,7 +5,7 @@
 #   Run from anywhere inside a project directory, or pass --project.
 #   Creates projects/<slug>/code/<repo>/<task-slug> on branch <task-slug>,
 #   copies untracked .env* files from main, and scaffolds
-#   handoffs/<task-slug>.md if it does not exist.
+#   handoffs/<task-slug>.md if missing and binds it to the worktree.
 set -euo pipefail
 
 CC_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -72,11 +72,41 @@ if [ ! -f "$HANDOFF" ]; then
   mkdir -p "$PROJ_DIR/handoffs"
   sed -e "s|{{TASK_SLUG}}|$TASK|g" \
       -e "s|{{PROJECT_SLUG}}|$SLUG|g" \
-      -e "s|{{REPO_NAME}}|$REPO|g" \
-      -e "s|{{BRANCH}}|$TASK|g" \
       -e "s|{{DATE}}|$(date +%F)|g" \
       "$CC_ROOT/templates/handoff.md" >"$HANDOFF"
   echo "created handoff: $HANDOFF"
+fi
+
+# Bind the handoff to this worktree. No worktree: key (or the legacy
+# `worktree: none`) means unbound; a handoff bound elsewhere is never
+# clobbered.
+WT_REL="code/$REPO/$TASK"
+if [ "$(head -1 "$HANDOFF")" != "---" ]; then
+  echo "warn: $HANDOFF has no frontmatter; handoff not bound" >&2
+else
+  bound="$(awk '/^---$/{f++; next} f>1{exit}
+    f==1 && sub(/^worktree:[[:space:]]*/, ""){print; exit}' "$HANDOFF")"
+  if [ "$bound" = "$WT_REL" ]; then
+    :  # already bound to this worktree
+  elif [ -n "$bound" ] && [ "$bound" != "none" ]; then
+    echo "warn: $HANDOFF is bound to '$bound'; handoff not rebound" >&2
+  else
+    awk -v repo="$REPO" -v branch="$TASK" -v wt="$WT_REL" '
+      /^---$/ {f++}
+      f==1 && /^(repo|branch|worktree):/ {next}
+      {print}
+      f==1 && /^project:/ {
+        print "repo: " repo
+        print "branch: " branch
+        print "worktree: " wt
+      }
+    ' "$HANDOFF" >"$HANDOFF.tmp" && mv "$HANDOFF.tmp" "$HANDOFF"
+    if grep -q "^worktree: $WT_REL\$" "$HANDOFF"; then
+      echo "bound handoff: $HANDOFF"
+    else
+      echo "warn: could not bind $HANDOFF (no project: line)" >&2
+    fi
+  fi
 fi
 
 echo ""

@@ -48,7 +48,8 @@ Cross-worktree mistakes waste time and tokens. Follow these rules:
 - Create a worktree only when you are about to edit repo X and no
   worktree is bound to your current task. Use `bin/wt-new <repo> <task-slug>`.
   It creates `code/<repo>/<task-slug>`, copies untracked env files, and
-  creates the task handoff with the binding.
+  creates the task handoff if missing — then binds it to the worktree.
+  A handoff without a `worktree:` frontmatter key is unbound.
 - Reuse the task's existing worktree for follow-up work on the same
   branch or PR.
 - Never create a worktree for read-only exploration. Read `main`.
