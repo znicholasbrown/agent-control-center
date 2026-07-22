@@ -7,6 +7,10 @@ projects/*/code/
 .tmp/
 .DS_Store
 
+# Per-machine Claude Code permission grants (the committed
+# .claude/settings.json stays tracked)
+.claude/settings.local.json
+
 # Sync machinery
 .sync.lock/
 .sync.log

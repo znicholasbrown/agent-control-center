@@ -116,3 +116,19 @@ built against. Three layers:
 (scoped to `projects/` + `memory/` docs only) at session end, both wired
 via hooks by `bootstrap.sh`. A lock directory prevents concurrent
 sessions from racing.
+
+## Permission prompts
+
+Claude Code allow rules cannot match a command wrapped in a variable
+assignment (`CC=$(...)`), and every subcommand of a compound command
+must match a rule on its own. The skills therefore run the resolver
+bare, and two layers ship the rules:
+
+- `.claude/settings.json` (committed) allows the resolver for every
+  session rooted in a center repo.
+- `link.sh` merges per-machine allow rules for routine helper commands
+  (`wt-ls`, `wt-new`, bare `wt-prune` dry run, `sync.sh pull`) of every
+  registered center into `~/.claude/settings.json`.
+
+Mutating forms (`wt-prune --apply`, `sync.sh push`) still prompt on
+purpose.

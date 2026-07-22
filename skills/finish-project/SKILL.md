@@ -5,12 +5,22 @@ description: Finish a control-center project - verifies nothing is unpushed, dis
 
 # /finish-project
 
-Resolve the control-center root first (called `$CC` below):
-`CC=$(~/.config/agent-control-center/resolve)`
-This picks the center you are working inside (nearest `.control-center`
-marker walking up from the current directory), else the machine default.
-If the resolver is missing, run `bin/bootstrap.sh` from a control-center
-checkout and start again.
+Resolve the control-center root first. Run the resolver exactly as
+written — nothing prepended, nothing appended:
+
+    ~/.config/agent-control-center/resolve
+
+Its output is the center root, called `$CC` below. Substitute that
+literal path wherever `$CC` appears in later commands. Do not wrap the
+resolver in an assignment or chain it with `&&`: permission allow rules
+cannot match past a variable assignment, and every subcommand of a
+compound must match, so wrapped forms prompt for approval every time.
+(Shell state does not persist between commands, so a variable would not
+survive anyway.)
+The resolver picks the center you are working inside (nearest
+`.control-center` marker walking up from the current directory), else
+the machine default. If it is missing, run `bin/bootstrap.sh` from a
+control-center checkout and start again.
 
 ## Steps
 
