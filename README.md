@@ -35,10 +35,13 @@ You can run several centers on one machine (say, `work` and
 
 - **Resolution is contextual.** Skills and scripts resolve "which
   center am I in" by walking up from the current directory to the
-  nearest `.control-center` marker. The registry's default center (set
+  nearest `.control-center` marker that is registered in
+  `~/.config/agent-control-center/centers/`. Unregistered markers are
+  skipped — a clone of this template under a project's `code/` tree
+  must not capture the walk-up. The registry's default center (set
   with `bootstrap.sh --default`, shown in
   `~/.config/agent-control-center/default`) is used only for sessions
-  outside every center.
+  outside every registered center.
 - **Guards compose.** Every registered center's path guard runs in
   every session, so worktrees in all centers stay protected no matter
   where you work.

@@ -70,24 +70,7 @@ DEFAULT_ROOT="$(cat "$CFG/centers/$DEFAULT_NAME")"
 say "registered '$NAME' -> $CC_ROOT (default center: $DEFAULT_NAME)"
 
 # ---- Resolver: how skills and humans find the right center ----------------
-cat >"$CFG/resolve" <<'EOF'
-#!/bin/sh
-# Prints the control-center root for the current context: the nearest
-# ancestor directory containing a .control-center file, else the
-# machine's default center.
-d="$PWD"
-while [ "$d" != "/" ]; do
-  [ -f "$d/.control-center" ] && { echo "$d"; exit 0; }
-  d="$(dirname "$d")"
-done
-cfg="$HOME/.config/agent-control-center"
-if [ -f "$cfg/default" ] && [ -f "$cfg/centers/$(cat "$cfg/default")" ]; then
-  cat "$cfg/centers/$(cat "$cfg/default")"
-  exit 0
-fi
-echo "no control center found; run bootstrap.sh from a control-center checkout" >&2
-exit 1
-EOF
+cp "$CC_ROOT/bin/resolve" "$CFG/resolve"
 chmod +x "$CFG/resolve"
 
 # ---- Claude Code: global import (default center only) ---------------------

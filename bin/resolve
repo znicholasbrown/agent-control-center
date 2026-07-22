@@ -1,0 +1,28 @@
+#!/bin/sh
+# Prints the control-center root for the current context: the nearest
+# ancestor directory that contains a .control-center file AND is
+# registered in ~/.config/agent-control-center/centers/, else the
+# machine's default center. The registry check matters because clones
+# of the template (e.g. under a project's code/ tree) also contain a
+# .control-center file; they must not capture the walk-up.
+cfg="$HOME/.config/agent-control-center"
+registered() {
+  for f in "$cfg/centers"/*; do
+    [ -f "$f" ] && [ "$(cat "$f")" = "$1" ] && return 0
+  done
+  return 1
+}
+d="$PWD"
+while [ "$d" != "/" ]; do
+  if [ -f "$d/.control-center" ] && registered "$d"; then
+    echo "$d"
+    exit 0
+  fi
+  d="$(dirname "$d")"
+done
+if [ -f "$cfg/default" ] && [ -f "$cfg/centers/$(cat "$cfg/default")" ]; then
+  cat "$cfg/centers/$(cat "$cfg/default")"
+  exit 0
+fi
+echo "no control center found; run bootstrap.sh from a control-center checkout" >&2
+exit 1
