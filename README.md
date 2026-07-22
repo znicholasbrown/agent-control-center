@@ -104,7 +104,11 @@ built against. Three layers:
    repo-relative paths in docs, `main` is read-only).
 3. **Mechanical** — `bin/guard-path.sh` blocks any file operation that
    resolves into a foreign worktree, wired as a Claude Code PreToolUse
-   hook and an opencode `tool.execute.before` plugin.
+   hook and an opencode `tool.execute.before` plugin. In bash commands
+   it vets both absolute and relative paths, and treats paths in
+   mutating commands (`rm`, `mv`, `sed -i`, redirects, …) as writes,
+   so `main` stays read-only. A `cd` to a worktree root is allowed:
+   that is how a session rebinds its workspace to a task worktree.
 
 ## Sync
 

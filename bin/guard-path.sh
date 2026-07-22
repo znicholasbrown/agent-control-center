@@ -66,6 +66,10 @@ check_path() {
   tree="$CC_ROOT/projects/$proj/code/$repo/$wt"
   [ "$tree" = "$WS" ] && return 0
 
+  if [ "$mode" != "write" ] && [ "$abs" = "$tree" ]; then
+    return 0  # the worktree root itself: cd rebinds and listings are fine
+  fi
+
   if [ "$mode" != "write" ] && [ "$wt" = "main" ]; then
     return 0  # main is a read-only reference checkout
   fi
@@ -83,6 +87,76 @@ case "$MODE" in
     if echo "$TARGET" | grep -qE 'git[^|;&]*clean[^|;&]*-[a-zA-Z]*[xX]'; then
       case "$CWD" in "$CC_ROOT"*) deny "'git clean -x' under the control center deletes every project's code/ checkouts. Never run it here." ;; esac
       echo "$TARGET" | grep -q "$CC_ROOT" && deny "'git clean -x' targeting the control center deletes every project's code/ checkouts. Never run it."
+    fi
+    # Tokenize the command: resolve path-like tokens (relative included)
+    # against CWD and classify each as read or write from the command
+    # shape. Falls back to the absolute-substring scan below when
+    # python3 is missing or the command has no path-like content.
+    if command -v python3 >/dev/null 2>&1; then
+      case "$TARGET" in
+        */*|*..*)
+          scan="$(printf '%s' "$TARGET" | python3 -c '
+import os, re, shlex, sys
+cwd = sys.argv[1]
+try:
+    lex = shlex.shlex(sys.stdin.read(), posix=True, punctuation_chars=True)
+    lex.whitespace_split = True
+    toks = list(lex)
+except ValueError:
+    sys.exit(0)
+punct = set("();<>|&")
+def op(t):
+    return bool(t) and all(c in punct for c in t)
+wrap = {"sudo", "env", "command", "nohup", "time", "xargs"}
+mut = {"rm", "mv", "cp", "tee", "touch", "mkdir", "rmdir", "chmod",
+       "chown", "ln", "truncate", "rsync", "install"}
+assign = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+segs, cur = [], []
+for t in toks:
+    if op(t) and ">" not in t and "<" not in t:
+        if cur:
+            segs.append(cur)
+        cur = []
+    else:
+        cur.append(t)
+if cur:
+    segs.append(cur)
+def cands(t):
+    forms = [t]
+    if "=" in t:
+        forms.append(t.split("=", 1)[1])
+    return [s for s in forms if "/" in s or s == ".."]
+seen = []
+for seg in segs:
+    words = [t for t in seg if not op(t)]
+    name = ""
+    for w in words:
+        if assign.match(w) or os.path.basename(w) in wrap:
+            continue
+        name = os.path.basename(w)
+        break
+    mode = "write" if name in mut else "read"
+    if name in ("sed", "perl") and any(w.startswith("-i") or w == "--in-place" for w in words):
+        mode = "write"
+    redir = False
+    for t in seg:
+        if op(t):
+            redir = ">" in t
+            continue
+        tmode = "write" if redir else mode
+        redir = False
+        for s in cands(t):
+            p = os.path.realpath(os.path.join(cwd, os.path.expanduser(s)))
+            if (tmode, p) not in seen:
+                seen.append((tmode, p))
+for tmode, p in seen:
+    sys.stdout.write(tmode + "\t" + p + "\n")
+' "$CWD" 2>/dev/null || true)"
+          while IFS=$'\t' read -r tmode tpath; do
+            [ -n "$tpath" ] && check_path "$tmode" "$tpath"
+          done <<<"$scan"
+          ;;
+      esac
     fi
     # Scan the command for absolute paths into any code/ tree; vet each as a read.
     for p in $(echo "$TARGET" | grep -oE "$CC_ROOT/projects/[^/]+/code/[^ '\"\`;|&)]*" | sort -u); do
