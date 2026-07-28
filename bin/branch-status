@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# branch-status — report whether a task branch has moved (merged/closed).
+#
+# Usage: branch-status <repo> <branch> [--project <slug>]
+#   Run from anywhere inside a project directory, or pass --project.
+#   Prints one line: "<status> <detail>" where status is one of
+#     merged closed open unmerged gone unknown
+#   gh (PR state) is the primary signal; git heuristics are the fallback.
+#   Always exits 0; read the status from stdout, not the exit code.
+#   Set BRANCH_STATUS_NO_GH=1 to force the git-only path (used by tests).
+set -u
+
+CC_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+usage() { echo "usage: branch-status <repo> <branch> [--project <slug>]" >&2; exit 2; }
+
+REPO="${1:-}"; BRANCH="${2:-}"; shift 2 2>/dev/null || usage
+PROJECT=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --project) PROJECT="${2:-}"; shift 2 ;;
+    *) usage ;;
+  esac
+done
+[ -z "$REPO" ] || [ -z "$BRANCH" ] && usage
+
+if [ -n "$PROJECT" ]; then
+  PROJ_DIR="$CC_ROOT/projects/$PROJECT"
+else
+  PROJ_DIR="$PWD"
+  while [ "$PROJ_DIR" != "/" ] && [ ! -f "$PROJ_DIR/PROJECT.md" ]; do
+    PROJ_DIR="$(dirname "$PROJ_DIR")"
+  done
+fi
+
+MAIN="$PROJ_DIR/code/$REPO/main"
+if [ ! -d "$MAIN" ]; then
+  echo "unknown no clone at code/$REPO/main"
+  exit 0
+fi
+
+git -C "$MAIN" fetch --prune --quiet origin 2>/dev/null || true
+default="$(git -C "$MAIN" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||' || true)"
+default="${default:-main}"
+
+status=""; detail=""
+
+# --- gh: PR state (primary signal) ---
+if [ "${BRANCH_STATUS_NO_GH:-0}" != "1" ] && command -v gh >/dev/null 2>&1 \
+   && ( cd "$MAIN" && gh repo view >/dev/null 2>&1 ); then
+  line="$( cd "$MAIN" && gh pr list --head "$BRANCH" --state all --limit 1 \
+    --json state,number,mergedAt \
+    --jq '.[0] | select(. != null) | "\(.state) \(.number) \(.mergedAt // "-")"' 2>/dev/null )"
+  if [ -n "$line" ]; then
+    st="${line%% *}"; rest="${line#* }"; num="${rest%% *}"; when="${rest##* }"
+    case "$st" in
+      MERGED) status=merged; detail="PR #$num merged ${when%%T*}" ;;
+      CLOSED) status=closed; detail="PR #$num closed unmerged" ;;
+      OPEN)   status=open;   detail="PR #$num open" ;;
+    esac
+  fi
+fi
+
+# --- git heuristics (fallback) ---
+if [ -z "$status" ]; then
+  if git -C "$MAIN" show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+    if git -C "$MAIN" merge-base --is-ancestor "origin/$BRANCH" "origin/$default" 2>/dev/null; then
+      status=merged;   detail="git: branch merged into $default"
+    else
+      status=unmerged; detail="git: remote branch exists, not merged into $default"
+    fi
+  else
+    status=gone;       detail="git: no remote branch, no PR found"
+  fi
+fi
+
+echo "$status $detail"
+exit 0

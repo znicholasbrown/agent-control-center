@@ -75,7 +75,7 @@ or `/start-project` to begin something new.
 | `skills/` | yes | Lifecycle skills: start / resume / finish project |
 | `memory/` | yes | Global memory (INDEX.md + topic files) |
 | `templates/` | yes | PROJECT.md, handoff, notes templates |
-| `bin/` | yes | Scripts: worktrees, path guard, sync, bootstrap |
+| `bin/` | yes | Scripts: worktrees, branch status, path guard, sync, bootstrap |
 | `projects/INDEX.md` | yes | Registry of all projects |
 | `projects/<slug>/` | yes | Manifest, handoffs, notes — the durable record |
 | `projects/<slug>/code/` | **no** | Clones + worktrees — disposable, rebuilt from manifest |
@@ -87,8 +87,10 @@ or `/start-project` to begin something new.
   each repo into `code/<repo>/main`, registers it in `projects/INDEX.md`.
 - **/resume-project** — pulls this repo first (latest handoffs from any
   machine), reads the manifest + handoffs + notes, reconciles `code/`
-  (re-clones anything missing), and summarizes. Continues a task's
-  Next Steps only when the task is named: `/resume-project <task>`.
+  (re-clones anything missing), verifies each active handoff's branch
+  against git/PR state (`bin/branch-status`) and marks shipped work
+  done, then summarizes. Continues a task's Next Steps only when the
+  task is named: `/resume-project <task>`.
 - **/finish-project** — refuses to run if any worktree has uncommitted or
   unpushed work; distills handoffs into the PROJECT.md outcome; promotes
   durable learnings to global memory; deletes `code/`; marks the project
