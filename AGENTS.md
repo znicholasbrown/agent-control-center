@@ -25,16 +25,18 @@ agent-control-center/
 
 ## Workspace discipline
 
-Cross-worktree mistakes waste time and tokens. Follow these rules:
+Cross-project mistakes waste time and tokens. Follow these rules:
 
-- At session start, resolve your workspace root once:
-  `git rev-parse --show-toplevel`. That directory is your workspace.
-- Never read or write inside another worktree or clone. A path under any
-  `projects/*/code/` tree that is not your workspace is off limits. A
-  guard hook enforces this; if it blocks you, correct your path — do not
-  work around the guard.
-- Exception: `code/<repo>/main` is a read-only reference. You may read
-  it. Never edit it.
+- Your writable workspace is the current project — every worktree under
+  the `projects/<slug>/` you are working in (any repo, any task). You do
+  not need to launch inside a specific worktree; being anywhere in your
+  project is enough. The guard derives the project from your session's
+  working directory.
+- Never read or write inside another project's `code/` tree, or another
+  control center. A guard hook enforces this; if it blocks you, correct
+  your path — do not work around the guard.
+- `code/<repo>/main` is a read-only reference. You may read it from any
+  project. Never edit it.
 - In handoffs, notes, and memory, store repo-relative paths, never
   absolute paths into a specific worktree. Absolute paths go stale when
   worktrees change and cause the next agent to work in the wrong tree.
@@ -52,6 +54,8 @@ Cross-worktree mistakes waste time and tokens. Follow these rules:
   A handoff without a `worktree:` frontmatter key is unbound.
 - Reuse the task's existing worktree for follow-up work on the same
   branch or PR.
+- One session may work across all of its project's worktrees; you do not
+  need a separate session per worktree.
 - Never create a worktree for read-only exploration. Read `main`.
 
 ## Memory protocol

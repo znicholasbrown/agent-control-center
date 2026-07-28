@@ -68,5 +68,7 @@ control-center checkout and start again.
 ## Rules
 
 - Work happens inside task worktrees, never in `code/<repo>/main`.
+- One session, run from `projects/<slug>/`, may work across that
+  project's worktrees; you need not relaunch inside a worktree.
 - Update the task's handoff file before the session ends.
 - Bare invocation never starts work. When in doubt, summarize and ask.
