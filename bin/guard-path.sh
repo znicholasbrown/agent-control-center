@@ -38,16 +38,29 @@ resolve() {
   fi
 }
 
-WS="$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null || true)"
+# The project whose subtree the session cwd is in (empty if the session
+# is at/above projects/ or outside this center). This is the session's
+# writable scope: it may read and write any worktree under its current
+# project, never another project's. The hook passes the fixed SESSION
+# cwd; it does not follow a `cd` inside a Bash command, so the writable
+# scope is the project, not one worktree.
+CUR_PROJ=""
+case "$CWD/" in
+  "$CC_ROOT"/projects/*/*)
+    rest="${CWD#"$CC_ROOT"/projects/}"
+    CUR_PROJ="${rest%%/*}"
+    ;;
+esac
 
 # Check one absolute path under the given mode. Allows anything outside
-# projects/*/code/; inside it, only the session's own worktree is writable
-# and only <repo>/main is readable as a reference.
+# projects/*/code/. Inside it, a task worktree is readable and writable
+# only within the session's current project; <repo>/main is a read-only
+# reference in any project.
 check_path() {
   local mode="$1" abs="$2"
   echo "$abs" | grep -qE "$CODE_RE" || return 0
 
-  local rel proj repo wt tree
+  local rel proj repo wt
   rel="${abs#"$CC_ROOT"/projects/}"
   proj="${rel%%/*}"
   rel="${rel#"$proj"/code}"
@@ -59,22 +72,25 @@ check_path() {
 
   # Path at or above the worktree level (e.g. listing code/<repo>/).
   if [ -z "$repo" ] || [ -z "$wt" ]; then
-    [ "$mode" = "write" ] && deny "cannot write at $abs — writes must target files inside your own worktree (workspace: ${WS:-unknown})."
+    [ "$mode" = "write" ] && deny "cannot write at $abs — writes must target files inside a task worktree of your project."
     return 0
   fi
 
-  tree="$CC_ROOT/projects/$proj/code/$repo/$wt"
-  [ "$tree" = "$WS" ] && return 0
-
-  if [ "$mode" != "write" ] && [ "$abs" = "$tree" ]; then
-    return 0  # the worktree root itself: cd rebinds and listings are fine
+  # main is a read-only reference checkout, in any project.
+  if [ "$wt" = "main" ]; then
+    [ "$mode" = "write" ] && deny "code/$repo/main is a read-only reference. Run bin/wt-new $repo <task> to make changes in a task worktree."
+    return 0
   fi
 
-  if [ "$mode" != "write" ] && [ "$wt" = "main" ]; then
-    return 0  # main is a read-only reference checkout
+  # A task worktree: readable and writable only within the current project.
+  if [ -n "$CUR_PROJ" ] && [ "$proj" = "$CUR_PROJ" ]; then
+    return 0
   fi
 
-  deny "$abs is inside the worktree '$proj/code/$repo/$wt', but your workspace is '${WS:-not a worktree}'. Work only inside your own worktree; read code/$repo/main for reference. If you need a worktree for this task, run bin/wt-new."
+  if [ -z "$CUR_PROJ" ]; then
+    deny "$abs is inside a project worktree, but your session is not inside a project (cwd: $CWD). cd into projects/$proj/ before working in its worktrees."
+  fi
+  deny "$abs is in project '$proj', but your session is in project '$CUR_PROJ'. A session may work only in its own project's worktrees. cd into projects/$proj/ to work there."
 }
 
 case "$MODE" in

@@ -107,15 +107,17 @@ built against. Three layers:
 
 1. **Layout** — each project's checkouts live under its own `code/`
    directory; wrong siblings are not one `cd ..` away.
-2. **Instruction** — `AGENTS.md` workspace rules (resolve your root once,
-   repo-relative paths in docs, `main` is read-only).
-3. **Mechanical** — `bin/guard-path.sh` blocks any file operation that
-   resolves into a foreign worktree, wired as a Claude Code PreToolUse
+2. **Instruction** — `AGENTS.md` workspace rules (writes scoped to your
+   project, repo-relative paths in docs, `main` is read-only).
+3. **Mechanical** — `bin/guard-path.sh` scopes writes to the current
+   project's worktrees and blocks any file operation that resolves into
+   another project's `code/` tree, wired as a Claude Code PreToolUse
    hook and an opencode `tool.execute.before` plugin. In bash commands
    it vets both absolute and relative paths, and treats paths in
-   mutating commands (`rm`, `mv`, `sed -i`, redirects, …) as writes,
-   so `main` stays read-only. A `cd` to a worktree root is allowed:
-   that is how a session rebinds its workspace to a task worktree.
+   mutating commands (`rm`, `mv`, `sed -i`, redirects, …) as writes, so
+   `code/<repo>/main` stays a read-only reference. The project is taken
+   from the session's working directory, so a session may span its
+   project's worktrees without relaunching.
 
 ## Sync
 
