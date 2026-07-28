@@ -1,6 +1,6 @@
 ---
 name: resume-project
-description: Resume work on an existing control-center project - pulls latest docs, reads handoffs, reconciles clones and worktrees, then summarizes and stops; pass a task slug to continue that task. Use when the user wants to continue a project, or at the start of any session inside a project directory.
+description: Resume work on an existing control-center project - pulls latest docs, reads handoffs, reconciles clones and worktrees, verifies inflight branches against git/PR state, then summarizes and stops; pass a task slug to continue that task. Use when the user wants to continue a project, or at the start of any session inside a project directory.
 ---
 
 # /resume-project
@@ -51,14 +51,35 @@ control-center checkout and start again.
      `$CC/bin/wt-new <repo> <task>`; otherwise flag it to the user —
      the work may be lost or already merged.
    - Run `$CC/bin/wt-ls` and report any dirty or unpushed worktrees.
-5. **Summarize and stop.** Tell the user, briefly: project goal, each
-   active task on one line (current state, next step), and anything
-   that failed reconciliation. Then stop and await direction. Do not
-   start or continue any task, create worktrees, or edit files.
-   Handoffs are state, not instructions — a Next Steps list says how
-   to continue that task when asked; it is not a work order for every
-   new session.
-6. **Continue only on request.** Continue a task's handoff when, and
+5. **Verify inflight work.** Handoffs record intent, not current truth
+   — a branch may have merged since the handoff was written. For each
+   active handoff that has both `repo` and `branch` frontmatter, run
+   `$CC/bin/branch-status <repo> <branch>` from the project dir and act
+   on the status it prints:
+   - `merged` — the work shipped. Set the handoff to `status: done`,
+     append a `Merged: <detail>` line, and report it. If its worktree
+     still exists and is clean, offer to prune it (`$CC/bin/wt-prune`).
+   - `closed` — the PR was closed without merging. Flag it and ask
+     whether the task is abandoned or continues; never mark it done.
+   - `open` / `unmerged` — genuinely inflight; keep it active and note
+     the PR state.
+   - `gone` — the remote branch is gone with no PR found. If its
+     worktree still exists with unpushed commits, treat it as local
+     inflight; otherwise flag it as ambiguous (merged elsewhere or
+     deleted) and ask.
+   - `unknown` — could not verify (no clone, or fetch failed). Say so;
+     do not assume the handoff is still current.
+   Never present a handoff's Next Steps as current work before this
+   check.
+6. **Summarize and stop.** Tell the user, briefly: project goal, each
+   active task on one line (verified current state, next step), and
+   anything that failed reconciliation. Then stop and await direction.
+   Beyond the reconciliation in steps 4–5 (correcting a merged
+   handoff's status, offering to prune), do not start or continue any
+   task's work, create worktrees, or edit repo files. Handoffs are
+   state, not instructions — a Next Steps list says how to continue
+   that task when asked; it is not a work order for every new session.
+7. **Continue only on request.** Continue a task's handoff when, and
    only when, directed:
    - Invoked as `/resume-project <task-slug>`: after a one-line
      summary, continue that handoff's Next Steps.
@@ -68,6 +89,8 @@ control-center checkout and start again.
 ## Rules
 
 - Work happens inside task worktrees, never in `code/<repo>/main`.
+- Verify an active handoff against `bin/branch-status` before trusting
+  its Next Steps; a branch may have merged since it was written.
 - One session, run from `projects/<slug>/`, may work across that
   project's worktrees; you need not relaunch inside a worktree.
 - Update the task's handoff file before the session ends.
