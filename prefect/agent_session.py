@@ -104,3 +104,146 @@ def execute_turn(
     record["n"] = n
     record["message"] = message
     return record
+
+
+from pathlib import Path
+
+from prefect import flow, get_run_logger, task
+from prefect.artifacts import create_markdown_artifact, create_table_artifact
+from prefect.events import emit_event
+from prefect.flow_runs import suspend_flow_run
+from prefect.input import RunInput
+
+
+class NextMessage(RunInput):
+    message: str = ""
+    end_session: bool = False
+
+
+def form_description(reply: str, n: int) -> str:
+    return (
+        f"**Agent reply (turn {n}):**\n\n{reply}\n\n"
+        "Type the next message and submit. "
+        "Set end_session to finish the session."
+    )
+
+
+@task(persist_result=True, task_run_name="turn-{n}")
+def run_turn(
+    n: int,
+    message: str,
+    session_id: str | None,
+    project: str,
+    task_slug: str,
+    workdir: str,
+    agent_cmd: str,
+    model: str | None,
+    permission_mode: str | None,
+    timeout_s: int,
+) -> dict:
+    logger = get_run_logger()
+    logger.info("[human] %s", message)
+    record = execute_turn(
+        n=n,
+        message=message,
+        session_id=session_id,
+        workdir=workdir,
+        agent_cmd=agent_cmd,
+        model=model,
+        permission_mode=permission_mode,
+        timeout_s=timeout_s,
+        dump_dir=os.path.join(workdir, ".tmp", "agent-session-dumps"),
+    )
+    logger.info("[agent] %s", record["reply"])
+    if record["doc_count"] > 3:
+        logger.warning(
+            "agent stdout had %d documents; see raw-turn-%d.stdout",
+            record["doc_count"],
+            n,
+        )
+    emit_event(
+        event="agent-turn.completed",
+        resource={
+            "prefect.resource.id": (
+                f"agent-session.{record['session_id']}.turn.{n}"
+            ),
+            "project": project,
+            "task": task_slug,
+        },
+        payload={
+            k: record[k] for k in ("n", "tokens_in", "tokens_out", "cost_usd")
+        },
+    )
+    return record
+
+
+@task(persist_result=True)
+def publish_turn_artifacts(
+    project: str, task_slug: str, workdir: str, rows: list[dict]
+) -> None:
+    create_table_artifact(
+        key="turn-tokens",
+        table=[
+            {
+                k: r[k]
+                for k in (
+                    "n", "message", "reply", "tokens_in", "tokens_out",
+                    "cost_usd",
+                )
+            }
+            for r in rows
+        ],
+        description=f"Tokens and cost per turn ({project}/{task_slug})",
+    )
+    handoff = Path(workdir) / "handoffs" / f"{task_slug}.md"
+    if handoff.is_file():
+        create_markdown_artifact(
+            key=f"handoff-{project}-{task_slug}",
+            markdown=handoff.read_text(),
+            description=f"Handoff for {project}/{task_slug}",
+        )
+
+
+@flow(name="agent-session", flow_run_name="{task}")
+def agent_session(
+    project: str,
+    task: str,
+    prompt: str,
+    workdir: str | None = None,
+    model: str | None = None,
+    permission_mode: str | None = None,
+    agent_cmd: str = "claude",
+    max_turns: int = 50,
+    turn_timeout_s: int = 3600,
+) -> dict:
+    """One agent session. Suspends between turns; resume to continue."""
+    workdir = workdir or os.path.join("projects", project)
+    message = prompt
+    session_id = None
+    rows: list[dict] = []
+    for n in range(1, max_turns + 1):
+        record = run_turn(
+            n=n,
+            message=message,
+            session_id=session_id,
+            project=project,
+            task_slug=task,
+            workdir=workdir,
+            agent_cmd=agent_cmd,
+            model=model,
+            permission_mode=permission_mode,
+            timeout_s=turn_timeout_s,
+        )
+        session_id = record["session_id"]
+        rows.append(record)
+        publish_turn_artifacts(project, task, workdir, rows)
+        nxt = suspend_flow_run(
+            wait_for_input=NextMessage.with_initial_data(
+                description=form_description(record["reply"], n)
+            ),
+            key=f"turn-{n}",
+        )
+        if nxt.end_session:
+            break
+        message = nxt.message
+    return {"session_id": session_id, "turns": len(rows)}
