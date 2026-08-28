@@ -42,11 +42,14 @@ def main() -> None:
         agent_session.with_options(name=slug).to_deployment(
             name="session",
             tags=["agent-session", slug],
-            parameters={"project": slug, "agent_cmd": agent_cmd},
+            parameters={
+                "project": slug,
+                "agent_cmd": agent_cmd,
+                "workdir": str(cc_root / "projects" / slug),
+            },
         )
         for slug in slugs
     ]
-    os.chdir(cc_root)
     serve(*deployments, limit=10)
 
 
