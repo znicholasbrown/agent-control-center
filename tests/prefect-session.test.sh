@@ -164,4 +164,18 @@ EVENTS=$(curl -sf -X POST "$PREFECT_API_URL/events/filter" \
   | grep -o 'agent-session\.' | wc -l | tr -d ' ')
 [ "$EVENTS" -ge 2 ] || fail "expected >=2 turn events, got $EVENTS"
 
+# Automation bootstrap: skipped without block, then created, then exists.
+OUT1=$($DRIVE "$ROOT/prefect/bootstrap_automations.py") || fail "bootstrap run 1"
+case "$OUT1" in skipped:*) : ;; *) fail "expected skip, got: $OUT1" ;; esac
+$DRIVE - <<'PY' || fail "block create"
+from prefect.blocks.notifications import SlackWebhook
+SlackWebhook(url="https://hooks.slack.com/services/T000/B000/XXXX").save(
+    "agent-session-slack"
+)
+PY
+OUT2=$($DRIVE "$ROOT/prefect/bootstrap_automations.py") || fail "bootstrap run 2"
+[ "$OUT2" = "created" ] || fail "expected created, got: $OUT2"
+OUT3=$($DRIVE "$ROOT/prefect/bootstrap_automations.py") || fail "bootstrap run 3"
+[ "$OUT3" = "exists" ] || fail "expected exists, got: $OUT3"
+
 echo "PASS"

@@ -54,3 +54,17 @@ def test_missing_usage_is_none():
     out = parse_turn_stdout(stdout)
     assert out["tokens_in"] is None
     assert out["cost_usd"] is None
+
+
+def test_trailing_docs_zero_when_result_is_last():
+    out = parse_turn_stdout(
+        '{"type":"system","subtype":"init","session_id":"abc-123"}\n'
+        "noise\n" + RESULT + "\n"
+    )
+    assert out["trailing_docs"] == 0
+
+
+def test_trailing_docs_counts_content_after_result():
+    out = parse_turn_stdout(RESULT + '\n{"type":"stray"}\nmore noise\n')
+    assert out["trailing_docs"] == 2
+    assert out["reply"] == "OK"

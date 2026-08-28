@@ -27,18 +27,19 @@ def parse_turn_stdout(stdout: str) -> dict:
             docs.append(json.loads(line))
         except json.JSONDecodeError:
             docs.append({"unparsed": line[:200]})
-    result = next(
-        (
-            d
-            for d in reversed(docs)
-            if isinstance(d, dict) and "session_id" in d and "result" in d
-        ),
-        None,
-    )
+    result_index = None
+    for i, d in enumerate(reversed(docs)):
+        if isinstance(d, dict) and "session_id" in d and "result" in d:
+            result_index = len(docs) - 1 - i
+            result = d
+            break
+    else:
+        result = None
     if result is None:
         raise ValueError(
             f"no result document in agent stdout ({len(docs)} documents)"
         )
+    trailing_docs = len(docs) - result_index - 1
     usage = result.get("usage") or {}
     return {
         "session_id": result["session_id"],
@@ -47,6 +48,7 @@ def parse_turn_stdout(stdout: str) -> dict:
         "tokens_out": usage.get("output_tokens"),
         "cost_usd": result.get("total_cost_usd"),
         "doc_count": len(docs),
+        "trailing_docs": trailing_docs,
     }
 
 
@@ -155,10 +157,11 @@ def run_turn(
         dump_dir=os.path.join(workdir, ".tmp", "agent-session-dumps"),
     )
     logger.info("[agent] %s", record["reply"])
-    if record["doc_count"] > 3:
+    if record["trailing_docs"] > 0:
         logger.warning(
-            "agent stdout had %d documents; see raw-turn-%d.stdout",
-            record["doc_count"],
+            "agent stdout had %d document(s) after the result; "
+            "see raw-turn-%d.stdout",
+            record["trailing_docs"],
             n,
         )
     emit_event(

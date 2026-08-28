@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# One-time setup of the suspended-session Slack automation.
+# Config: ~/.config/agent-control-center/prefect.env (optional).
+#   Without it the active Prefect profile applies.
+# Run: bin/prefect-automations
+set -u
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ENV_FILE="$HOME/.config/agent-control-center/prefect.env"
+if [ -f "$ENV_FILE" ]; then
+  set -a
+  . "$ENV_FILE"
+  set +a
+fi
+exec uv run --quiet "$ROOT/prefect/bootstrap_automations.py"
