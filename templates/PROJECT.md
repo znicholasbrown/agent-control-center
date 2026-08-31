@@ -4,6 +4,10 @@ slug: {{PROJECT_SLUG}}
 status: active
 created: {{DATE}}
 extends: null
+# Replace the block with `tracker: none` if the user declines tracking.
+tracker:
+  type: {{TRACKER_TYPE}}       # linear, github, jira, ...
+  project: {{TRACKER_PROJECT}} # url or id; add milestone:/parent: if given
 repos:
   - name: {{REPO_NAME}}
     remote: {{REPO_REMOTE}}

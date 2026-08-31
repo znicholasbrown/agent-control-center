@@ -86,6 +86,53 @@ Rules:
 - Reference plans, ADRs, and commits by path or hash. Do not restate
   their content.
 
+## Tracker hygiene
+
+Projects may link an external tracker (Linear, GitHub Issues, Jira).
+The link lives in PROJECT.md frontmatter:
+
+```yaml
+tracker:
+  type: linear            # or github, jira, ...
+  project: <url or id>
+  milestone: <url or id>  # optional
+  parent: <url or id>     # optional parent issue
+```
+
+`tracker: none` records an explicit opt-out: skip every tracker step
+for that project. A missing `tracker:` key means the question was
+never asked; ask once at a natural moment and record the answer.
+
+Each task's ticket lives in its handoff frontmatter. The convention
+mirrors worktree binding:
+
+- No `ticket:` key — tracking not yet discussed. When work on the
+  task starts, ask for a ticket reference, or offer to create an
+  issue under the project's tracker.
+- `ticket: none` — the user declined tracking. Never ask again.
+- `ticket: <url or id>` — the task is tracked.
+
+Keep the tracker current at these moments, one short ask each:
+
+- Work start: offer to move the task's ticket to In Progress.
+- Session end: if the handoff update records new decisions or a
+  status change, offer to mirror them to the ticket as one batched
+  update.
+
+Hard rules:
+
+- NEVER write to a tracker without explicit approval in the current
+  session. Reads are always allowed. State every proposed write
+  concretely before asking ("move ENG-123 to Done and comment with
+  the PR link — ok?"). One approval covers exactly the batch it was
+  asked for, never future writes.
+- Hygiene is best-effort, not a gate. Never block work on a missing
+  ticket. Ask once per moment. Record a "no" as `none` and accept it
+  permanently.
+- Use the tracker tooling available in the session (for example the
+  Linear MCP tools). If none is available, record the references the
+  user provides and skip creation offers and status checks.
+
 ## Sync and commit policy
 
 - Agents may commit and push ONLY control-center documentation:
