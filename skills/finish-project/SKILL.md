@@ -40,19 +40,26 @@ control-center checkout and start again.
    handoffs and notes: what shipped (PR links), key decisions, and an
    explicit list of loose ends. Reference PRs and commits by link or
    hash; do not restate diffs.
-4. **Promote durable learnings.** Anything useful beyond this project
+4. **Propose tracker close-out.** Skip when PROJECT.md has
+   `tracker: none`, no `tracker:` key, or the session has no tracker
+   tooling. Otherwise propose one batched update: close or update each
+   task's remaining ticket (note its loose ends on it), and mark the
+   tracker project or milestone done. State each write concretely and
+   apply only what the user approves. Never write to a tracker without
+   explicit approval (see AGENTS.md, Tracker hygiene).
+5. **Promote durable learnings.** Anything useful beyond this project
    goes to `$CC/memory/global/` (update `memory/INDEX.md`), or becomes a
    new skill in `$CC/skills/` if it is a reusable procedure. Ask the
    user before creating a new skill.
-5. **Close out the docs.** Set `status: done` in PROJECT.md frontmatter
+6. **Close out the docs.** Set `status: done` in PROJECT.md frontmatter
    and in every handoff's frontmatter; update the project's row in
    `$CC/projects/INDEX.md`.
-6. **Delete `code/`.** For each repo: `git -C code/<repo>/main worktree
+7. **Delete `code/`.** For each repo: `git -C code/<repo>/main worktree
    remove <path>` for every worktree, then delete the repo directory.
    Finally remove the project's `code/` directory entirely. The
    committed docs and the remotes are the durable record.
-7. **Sync.** Run `$CC/bin/sync.sh push` (control-center docs only).
-8. **Report.** Outcome summary, loose ends, and disk reclaimed.
+8. **Sync.** Run `$CC/bin/sync.sh push` (control-center docs only).
+9. **Report.** Outcome summary, loose ends, and disk reclaimed.
 
 ## Rules
 
@@ -60,4 +67,4 @@ control-center checkout and start again.
   or unpushed work without the user's explicit, per-worktree consent.
 - Pausing instead of finishing: set `status: paused` in PROJECT.md and
   the registry, keep or prune `code/` per the user's preference, skip
-  steps 3–6.
+  steps 3–7.

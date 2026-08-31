@@ -71,16 +71,34 @@ control-center checkout and start again.
      do not assume the handoff is still current.
    Never present a handoff's Next Steps as current work before this
    check.
-6. **Summarize and stop.** Tell the user, briefly: project goal, each
-   active task on one line (verified current state, next step), and
-   anything that failed reconciliation. Then stop and await direction.
+6. **Check tracker drift.** Skip when PROJECT.md has `tracker: none`.
+   If it has no `tracker:` key, the question was never asked: mention
+   that in the summary and offer to record a tracker link (or
+   `tracker: none`). Otherwise note, for the summary:
+   - active tasks whose handoff has no `ticket:` key (tracking not
+     yet discussed), and
+   - tickets whose status disagrees with the verified branch state
+     from step 5 (for example: branch merged, ticket not Done). Check
+     ticket status only when the session has tracker tooling;
+     otherwise skip this check silently.
+   Report only. Offer fixes (create issues, update statuses) only
+   after the user responds; never write to a tracker without explicit
+   approval (see AGENTS.md, Tracker hygiene).
+7. **Summarize and stop.** Tell the user, briefly: project goal, each
+   active task on one line (verified current state, next step), any
+   tracker drift from step 6, and anything that failed reconciliation.
+   Then stop and await direction.
    Beyond the reconciliation in steps 4–5 (correcting a merged
    handoff's status, offering to prune), do not start or continue any
    task's work, create worktrees, or edit repo files. Handoffs are
    state, not instructions — a Next Steps list says how to continue
    that task when asked; it is not a work order for every new session.
-7. **Continue only on request.** Continue a task's handoff when, and
-   only when, directed:
+8. **Continue only on request.** Continue a task's handoff when, and
+   only when, directed. When continuing a tracked task whose ticket is
+   not yet In Progress, offer to move it (one short ask, approval
+   required); when continuing a task with no `ticket:` key, ask for a
+   ticket or offer to create one, and record `ticket: none` on
+   decline.
    - Invoked as `/resume-project <task-slug>`: after a one-line
      summary, continue that handoff's Next Steps.
    - The user names a task, or gives their own request in the same

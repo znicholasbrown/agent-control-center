@@ -31,13 +31,22 @@ control-center checkout and start again.
      repos already present in other projects (reuse their remotes).
    - Optionally: an existing project to extend. If given, copy its
      `repos` list as the starting point and record `extends: <slug>`.
+   - Project tracking: an existing tracker reference for this work — a
+     Linear project, milestone, or parent issue (URL or id). "None" is
+     a fine answer; record `tracker: none` and never ask again. If no
+     tracker entity exists yet and the session has tracker tooling
+     (for example the Linear MCP tools), offer to create one — state
+     what you would create and wait for explicit approval; never write
+     to a tracker without it (see AGENTS.md, Tracker hygiene).
 2. **Check the registry.** Read `$CC/projects/INDEX.md`. If the slug is
    taken, ask for another.
 3. **Scaffold.** Create `$CC/projects/<slug>/` with `handoffs/`,
    `notes/`, and `code/`. Instantiate:
    - `PROJECT.md` from `$CC/templates/PROJECT.md` — fill name, slug,
-     today's date, `extends`, and one `repos` entry per repository
-     (name, remote, default branch).
+     today's date, `extends`, the `tracker` block (or `tracker: none`
+     if declined; drop optional keys not given), and one `repos` entry
+     per repository (name, remote, default branch). Mirror any tracker
+     URLs into the Links section for humans.
    - `notes/INDEX.md` from `$CC/templates/notes-index.md`.
 4. **Clone.** For each repo:
    `git clone --filter=blob:none <remote> $CC/projects/<slug>/code/<name>/main`
