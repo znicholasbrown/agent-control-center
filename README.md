@@ -128,6 +128,45 @@ built against. Three layers:
 via hooks by `bootstrap.sh`. A lock directory prevents concurrent
 sessions from racing.
 
+## Agent sessions as Prefect flows
+
+Each active project can run agent sessions as Prefect flow runs. A
+session suspends between turns. It costs nothing while it waits. You
+answer from the Prefect UI, and the answer becomes the next message.
+
+Setup:
+
+1. Point the tools at a Prefect API. Prefect Cloud is the default:
+   run `prefect cloud login` once, and the daemons use your active
+   Prefect profile. To pin this machine to a different API, create
+   `~/.config/agent-control-center/prefect.env` with
+   `PREFECT_API_URL` (plus `PREFECT_API_KEY` for Cloud), or with
+   `PREFECT_PROFILE=<name>` to pin a named profile. The file
+   overrides the active profile.
+2. Start the daemon: `bin/prefect-serve`. It registers one
+   `<slug>/session` deployment per active project in
+   `projects/INDEX.md`.
+3. Optional Slack pings: create a `SlackWebhook` block named
+   `agent-session-slack`, then run `bin/prefect-automations` once.
+
+To switch between Cloud and a self-hosted server: change the active
+profile (`prefect profile use <name>`) or edit `prefect.env`, then
+restart `bin/prefect-serve`. Runs still execute on this machine in
+both cases.
+
+Usage:
+
+- Start a session from the UI, or:
+  `prefect deployment run '<slug>/session' -p task=<task-slug> -p prompt='<first message>'`
+- When the run suspends, open it and press Resume. The form shows the
+  agent's reply. Type the next message, or set `end_session` to
+  finish.
+- Each run records tokens and cost per turn (`turn-tokens` artifact,
+  `agent-turn.completed` events) and logs every `[human]` and
+  `[agent]` message.
+- Sessions are resumable in the terminal too:
+  `claude --resume <session-id>` from the project directory.
+
 ## Permission prompts
 
 Claude Code allow rules cannot match a command wrapped in a variable

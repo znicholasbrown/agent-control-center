@@ -7,6 +7,10 @@ projects/*/code/
 .tmp/
 .DS_Store
 
+# Python compiled files and cache
+__pycache__/
+*.pyc
+
 # Per-machine Claude Code permission grants (the committed
 # .claude/settings.json stays tracked)
 .claude/settings.local.json

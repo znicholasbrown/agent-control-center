@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Serve one agent-session Prefect deployment per active project.
+# Config: ~/.config/agent-control-center/prefect.env (optional).
+#   Without it the active Prefect profile applies (prefect cloud
+#   login / prefect profile use). Set PREFECT_API_URL to pin a
+#   server, or PREFECT_PROFILE to pin a named profile.
+# Run: bin/prefect-serve
+set -u
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ENV_FILE="$HOME/.config/agent-control-center/prefect.env"
+if [ -f "$ENV_FILE" ]; then
+  set -a
+  . "$ENV_FILE"
+  set +a
+fi
+command -v uv >/dev/null 2>&1 || {
+  echo "prefect-serve: uv is required (https://docs.astral.sh/uv/)" >&2
+  exit 1
+}
+cd "$ROOT"
+exec uv run --quiet "$ROOT/prefect/serve.py"

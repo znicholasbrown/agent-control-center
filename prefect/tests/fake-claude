@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Stub agent CLI. Emits claude-shaped stream-json on stdout.
+# Reply format: "echo(<session-id>): <prompt>". Includes one non-JSON
+# line so callers must parse tolerantly. Prompts must not contain
+# double quotes.
+set -u
+prompt="" session="" expect=""
+for a in "$@"; do
+  case "$expect" in
+    resume) session="$a"; expect="" ;;
+    prompt) prompt="$a"; expect="" ;;
+    *)
+      case "$a" in
+        --resume) expect=resume ;;
+        -p) expect=prompt ;;
+      esac
+      ;;
+  esac
+done
+[ -n "$session" ] || session="00000000-0000-0000-0000-00000000f4ce"
+printf '{"type":"system","subtype":"init","session_id":"%s"}\n' "$session"
+printf 'fake-claude noise line\n'
+printf '{"type":"result","subtype":"success","session_id":"%s","result":"echo(%s): %s","usage":{"input_tokens":11,"output_tokens":22},"total_cost_usd":0.001}\n' \
+  "$session" "$session" "$prompt"
