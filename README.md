@@ -9,69 +9,96 @@ opencode, Codex, and Gemini CLI.
 
 ## Why use it
 
-- **Agents forget between sessions.** Each task keeps a handoff file
-  with its current state, decisions, and next steps. The next session
-  reads it first and continues from there.
-- **Parallel agents get in each other's way.** Each task gets its own
-  Git worktree. A guard stops an agent from writing to another
-  project's files.
-- **Context is stuck on one machine or in one tool.** Handoffs and
-  notes are plain Markdown in a Git repository. They sync to every
-  machine, and every agent CLI can read them.
-- **Rules drift between tools.** One `AGENTS.md` and one set of writing
-  and coding guidelines apply to every session.
+| Without a control center | With a control center |
+|---|---|
+| 🧠 Each session starts from zero. You explain the task again. | Each task has a **handoff** file with its state, decisions, and next steps. The next session reads it first. |
+| 💥 Two agents edit the same checkout and break each other's work. | Each task gets its own **Git worktree**. A guard blocks writes to other projects. |
+| 💻 Context stays on one laptop or inside one agent CLI. | Handoffs and notes are **Markdown in Git**. They sync to every machine, and every agent CLI can read them. |
+| 📜 Each tool has its own rules, and the rules drift apart. | One **`AGENTS.md`** and one set of guidelines apply to every session. |
 
 ## When it fits
 
-Use it if you run agent sessions across several repositories or
+✅ **Use it** if you run agent sessions across several repositories or
 projects, run more than one session at a time, or move between
 machines or agent CLIs.
 
-It adds little if you work in one repository with one agent at a time.
+➖ **Skip it** if you work in one repository with one agent at a time.
 The agent's own memory and the repository's docs are enough for that.
 
 ## How it works
 
-**Projects.** Each project is a folder under `projects/`. It holds a
-manifest that lists the project's repositories, a `handoffs/` folder,
-and a `notes/` folder. The repositories are cloned into the project's
-`code/` folder. Code is never committed to the control center; it is
-cloned again from the manifest when needed.
+### A session, start to end
 
-**Handoffs.** A handoff is one file per task. It records the goal, the
-current state, decisions, dead ends, and next steps. The agent updates
-it before each session ends. The next session starts from it.
+Documents sync through the control center's own Git remote. Code goes
+only to each project's repository, and only when you ask.
 
-**Notes.** Notes hold knowledge that lasts longer than one task, such as
-designs, plans, and facts about the project's systems. Knowledge that
-applies to every project goes to the global `memory/` folder.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant L as Agent session on laptop
+    participant CC as Control center remote
+    participant D as Agent session on desktop
+    participant R as Project repository
 
-**Sync.** A hook pulls the latest handoffs and notes when a session
-starts. Another hook pushes them to the control center's Git remote
-when the session ends. Only documents sync. Code changes stay in the
-project's own repositories, and agents never commit them unless you
-ask.
+    Note over L: Session starts
+    CC->>L: Pull handoffs and notes
+    L->>L: Read the task handoff
+    L->>L: Work in the task worktree
+    L-->>R: Push code, only when you ask
+    L->>L: Update the handoff
+    Note over L: Session ends
+    L->>CC: Push handoffs and notes
 
-**Isolation.** Each task gets its own worktree. The main checkout of
-each repository is read-only. A guard blocks writes outside the current
-project, so an agent cannot edit the wrong checkout.
+    Note over D: Next day, another machine
+    CC->>D: Pull handoffs and notes
+    D->>D: Continue from the handoff's next steps
+```
 
-**Trackers (optional).** A project can link to Linear, GitHub Issues,
-or Jira. Agents offer to update tickets at the start and end of work.
-They never write to a tracker without your approval.
+### What each part holds
+
+| Part | What it holds | When it changes | Synced |
+|---|---|---|---|
+| **Project manifest** | The project's repositories and status | When a project starts and finishes | ✅ |
+| **Handoff** | One task: goal, state, decisions, dead ends, next steps | Before every session ends | ✅ |
+| **Notes** | Project knowledge that outlasts one task: designs, plans, system facts | When an agent learns something lasting | ✅ |
+| **Global memory** | Preferences and facts for every project | When a lesson applies beyond one project | ✅ |
+| **Code** | Clones and task worktrees | While agents work | ❌ Cloned again from the manifest |
+
+### Where agents can write
+
+Each project keeps its code in its own folder. An agent can write only
+inside the project where its session runs.
+
+```text
+projects/
+├── billing-api/                  ← session runs here
+│   ├── PROJECT.md
+│   ├── handoffs/
+│   ├── notes/
+│   └── code/
+│       └── api/
+│           ├── main/             🔒 read-only reference checkout
+│           └── fix-retry-logic/  ✏️  task worktree
+└── docs-site/
+    └── code/                     🚫 blocked: another project
+```
+
+### Trackers (optional)
+
+A project can link to Linear, GitHub Issues, or Jira. Agents offer to
+update tickets when work starts and when a session ends. They never
+write to a tracker without your approval.
 
 ## Daily use
 
 Run these commands in any agent session:
 
-- `/start-project` creates a project, clones its repositories, and
-  registers it.
-- `/resume-project` pulls the latest documents, checks which branches
-  have merged, and summarizes each active task. Add a task name to
-  continue that task: `/resume-project <task>`.
-- `/finish-project` checks that no work is unpushed, records the
-  outcome, saves lasting lessons to global memory, and deletes the
-  project's code.
+| Command | What it does |
+|---|---|
+| `/start-project` | Creates a project, clones its repositories, and registers it. |
+| `/resume-project` | Pulls the latest documents, checks which branches have merged, and summarizes each active task. |
+| `/resume-project <task>` | Does the same, then continues that task from its handoff. |
+| `/finish-project` | Checks that no work is unpushed, records the outcome, saves lasting lessons to global memory, and deletes the project's code. |
 
 To start work on a repository, create a worktree for the task:
 
