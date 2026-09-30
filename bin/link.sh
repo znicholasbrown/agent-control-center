@@ -148,6 +148,19 @@ else
   say "SKIPPED opencode AGENTS.md — real file exists; merge it manually"
 fi
 
+# ---- opencode: writing guidelines (default center only) -------------------
+# opencode does not follow @imports in AGENTS.md; list the files instead.
+OC_JSON="$OC_DIR/opencode.json"
+if command -v jq >/dev/null 2>&1; then
+  [ -f "$OC_JSON" ] || echo '{}' >"$OC_JSON"
+  jq --arg g "$DEFAULT_ROOT/guidelines" '
+    .instructions = ((.instructions // [])
+      | map(select(test("/guidelines/(writing|models)\\.md$") | not))
+      + [$g + "/writing.md", $g + "/models.md"])
+  ' "$OC_JSON" >"$OC_JSON.tmp" && mv "$OC_JSON.tmp" "$OC_JSON"
+  say "opencode instructions -> $DEFAULT_NAME writing guidelines"
+fi
+
 # ---- opencode: guard plugin (registry-aware, one copy serves all) ---------
 mkdir -p "$OC_DIR/plugin"
 ln -sfn "$CC_ROOT/bin/adapters/opencode-control-center.js" \

@@ -77,4 +77,17 @@ else
   fail=1
 fi
 
+
+# --- opencode lists each writing guideline once ---------------------------
+OC="$HOMEDIR/.config/opencode/opencode.json"
+for f in writing.md models.md; do
+  n="$(jq --arg f "$CENTER/guidelines/$f" '[.instructions[] | select(. == $f)] | length' "$OC" 2>/dev/null)"
+  if [ "$n" = "1" ]; then
+    echo "  ok      opencode instructions list $f once"
+  else
+    echo "  FAIL    opencode instructions list $f once (got ${n:-none})"
+    fail=1
+  fi
+done
+
 exit $fail
