@@ -56,7 +56,8 @@ Cross-project mistakes waste time and tokens. Follow these rules:
   branch or PR.
 - One session may work across all of its project's worktrees; you do not
   need a separate session per worktree.
-- Never create a worktree for read-only exploration. Read `main`.
+- Do not create a worktree for read-only exploration. Read `main`.
+  Each worktree is a full checkout that someone must prune later.
 
 ## Memory protocol
 
@@ -159,12 +160,20 @@ Many agents and the user share this machine:
 
 ## Scratch files
 
-Never write scratch or temporary files to `/tmp`, `$TMPDIR`, or the home
-directory. Create a `.tmp/` directory inside your current workspace and
-use that. It is disposable.
+Write scratch and temporary files to a `.tmp/` directory inside your
+current workspace, not to `/tmp`, `$TMPDIR`, or the home directory.
+Files outside the workspace are shared with every other session, and
+the next agent cannot find them. `.tmp/` is disposable.
 
 ## Guidelines
 
-- Writing (docs, copy, handoffs): follow `guidelines/writing.md`.
 - Code: follow `guidelines/coding.md`, and defer to the conventions of
   the repo you are working in.
+- Writing: the guidelines below apply to every reply, summary, doc,
+  handoff, and piece of copy. `guidelines/models.md` adds the
+  adjustments for each model. `guidelines/SOURCES.md` records where
+  each rule comes from.
+
+@guidelines/writing.md
+
+@guidelines/models.md

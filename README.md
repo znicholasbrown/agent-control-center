@@ -121,6 +121,24 @@ built against. Three layers:
    from the session's working directory, so a session may span its
    project's worktrees without relaunching.
 
+## Writing guidelines
+
+`guidelines/writing.md` holds the writing rules for every agent. It
+combines ASD-STE100 plain-language rules with the model-neutral output
+rules from the Claude prompt-engineering docs.
+
+Some rules conflict between models: one model needs more progress
+updates, another needs fewer. `guidelines/models.md` has one section
+per model ID, and each model applies only its own section. The model
+reads its ID from its system prompt, so the right section applies in
+headless runs, in subagents, and after `/model`. (Claude Code hook
+inputs do not reliably include the model ID, so a hook cannot select
+the section.)
+
+`AGENTS.md` imports both files, so every Claude Code session loads
+them. `link.sh` adds both to opencode's `instructions` list.
+`guidelines/SOURCES.md` records the doc section behind each rule.
+
 ## Sync
 
 `bin/sync.sh` keeps the remote current: `pull` at session start, `push`
