@@ -27,32 +27,60 @@ The agent's own memory and the repository's docs are enough for that.
 
 ## How it works
 
-### A session, start to end
+### Two sessions, start to end
 
-Documents sync through the control center's own Git remote. Code goes
-only to each project's repository, and only when you ask.
+Two agents work on the same project at the same time, each on its own
+task. They can run on one machine or on different machines. Handoffs
+and notes sync through the control center's own Git remote. Code goes
+to the project's repository only when you ask.
 
 ```mermaid
 sequenceDiagram
-    autonumber
-    participant L as Agent session on laptop
+    participant A as Agent session A
+    participant B as Agent session B
     participant CC as Control center remote
-    participant D as Agent session on desktop
     participant R as Project repository
 
-    Note over L: Session starts
-    CC->>L: Pull handoffs and notes
-    L->>L: Read the task handoff
-    L->>L: Work in the task worktree
-    L-->>R: Push code, only when you ask
-    L->>L: Update the handoff
-    Note over L: Session ends
-    L->>CC: Push handoffs and notes
+    Note over A,R: 1. Each session starts
+    par Session A
+        CC->>A: Pull handoffs and notes
+        A->>A: Read the fix-retry-logic handoff
+    and Session B
+        CC->>B: Pull handoffs and notes
+        B->>B: Read the add-csv-export handoff
+    end
 
-    Note over D: Next day, another machine
-    CC->>D: Pull handoffs and notes
-    D->>D: Continue from the handoff's next steps
+    Note over A,R: 2. Each session works in its own worktree
+    par Session A
+        A->>A: Edit code in the fix-retry-logic worktree
+        A-->>R: Push code, only when you ask
+    and Session B
+        B->>B: Edit code in the add-csv-export worktree
+    end
+
+    Note over A,R: 3. Each session ends
+    par Session A
+        A->>A: Update the handoff
+        A->>CC: Push handoffs and notes
+    and Session B
+        B->>B: Update the handoff
+        B->>CC: Push handoffs and notes
+    end
 ```
+
+**How to read the diagram**
+
+| In the diagram | What it means |
+|---|---|
+| Column | A participant: an agent session, or a Git remote that stores its work. |
+| ➡️ Solid arrow between columns | Automatic sync. A hook runs it when a session starts or ends. |
+| ⇢ Dotted arrow | An action that happens only when you ask for it. |
+| 🔁 Arrow that loops back to its own column | Work inside the session. Nothing leaves the machine. |
+| `par` box | The two sessions do these steps at the same time. |
+| Numbered note | The phase of a session: start, work, end. |
+
+A later session, on any machine, starts at phase 1 with the latest
+handoffs. That is how work continues across days and machines.
 
 ### What each part holds
 
@@ -71,14 +99,15 @@ inside the project where its session runs.
 
 ```text
 projects/
-├── billing-api/                  ← session runs here
+├── billing-api/                  ← sessions A and B run here
 │   ├── PROJECT.md
 │   ├── handoffs/
 │   ├── notes/
 │   └── code/
 │       └── api/
 │           ├── main/             🔒 read-only reference checkout
-│           └── fix-retry-logic/  ✏️  task worktree
+│           ├── fix-retry-logic/  ✏️  worktree for session A
+│           └── add-csv-export/   ✏️  worktree for session B
 └── docs-site/
     └── code/                     🚫 blocked: another project
 ```
