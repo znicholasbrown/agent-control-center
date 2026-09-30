@@ -1,163 +1,191 @@
 # agent-control-center
 
-One repository that wraps all local agent work: global agent rules,
-skills, guidelines, memory, and a `projects/` directory that holds every
-project checkout. Clone this repo on a new machine and you have the
-whole setup; project code re-clones on demand from each project's
-manifest.
+A shared workspace for your coding agents. It keeps each project's code,
+notes, and task handoffs in one place. Any agent, on any machine, can
+continue where the last session stopped.
 
-Agent- and model-agnostic by construction: every major agent CLI
-(opencode, Codex, Gemini, ...) discovers `AGENTS.md` by walking up the
-directory tree, so any session launched under `projects/` inherits the
-global rules. Claude Code reads the same file through the one-line
-`CLAUDE.md` shim.
+It works with any agent CLI that reads `AGENTS.md`, such as Claude Code,
+opencode, Codex, and Gemini CLI.
 
-## Use as a template
+## Why use it
 
-This repository is designed to be a GitHub template. To create your own
-control center:
+| Without a control center | With a control center |
+|---|---|
+| 🧠 Each session starts from zero. You explain the task again. | Each task has a **handoff** file with its state, decisions, and next steps. The next session reads it first. |
+| 💥 Two agents edit the same checkout and break each other's work. | Each task gets its own **Git worktree**. A guard blocks writes to other projects. |
+| 💻 Context stays on one laptop or inside one agent CLI. | Handoffs and notes are **Markdown in Git**. They sync to every machine, and every agent CLI can read them. |
+| 📜 Each tool has its own rules, and the rules drift apart. | One **`AGENTS.md`** and one set of guidelines apply to every session. |
 
-1. Click "Use this template" on GitHub (or fork/copy the files).
-2. Clone your new repo anywhere you like — the conventional location is
-   `~/projects/agent-control-center`, but nothing depends on it.
-3. Run `./bin/bootstrap.sh --name <name>`. The name identifies this
-   center in `~/.config/agent-control-center/centers/` and must be
-   unique per machine. It also gets written to the committed
-   `.control-center` file, so every machine that clones this center
-   uses the same name.
-4. Make it yours: edit `guidelines/` to your taste, and adjust
-   `AGENTS.md` if your machine-sharing or commit rules differ.
+## When it fits
 
-## Multiple control centers
+✅ **Use it** if you run agent sessions across several repositories or
+projects, run more than one session at a time, or move between
+machines or agent CLIs.
 
-You can run several centers on one machine (say, `work` and
-`personal`), each created from this template with its own name:
+➖ **Skip it** if you work in one repository with one agent at a time.
+The agent's own memory and the repository's docs are enough for that.
 
-- **Resolution is contextual.** Skills and scripts resolve "which
-  center am I in" by walking up from the current directory to the
-  nearest `.control-center` marker that is registered in
-  `~/.config/agent-control-center/centers/`. Unregistered markers are
-  skipped — a clone of this template under a project's `code/` tree
-  must not capture the walk-up. The registry's default center (set
-  with `bootstrap.sh --default`, shown in
-  `~/.config/agent-control-center/default`) is used only for sessions
-  outside every registered center.
-- **Guards compose.** Every registered center's path guard runs in
-  every session, so worktrees in all centers stay protected no matter
-  where you work.
-- **Global rule imports go to the default center only** (`~/.claude/CLAUDE.md`
-  and opencode's global `AGENTS.md`). A session inside a non-default
-  center still gets that center's rules through normal `AGENTS.md`
-  directory walk-up.
-- **Sync covers all centers.** Session hooks pull and push every
-  registered center's docs.
+## How it works
 
-## Quickstart (each additional machine)
+### Two sessions, start to end
+
+Two agents work on the same project at the same time, each on its own
+task. They can run on one machine or on different machines. Handoffs
+and notes sync through the control center's own Git remote. Code comes
+from the project's code repositories, and a project can have many.
+Agents update handoffs while they work. Sync runs each time a session
+starts or ends, which happens many times a day (see
+[When sync runs](#when-sync-runs)).
+
+```mermaid
+sequenceDiagram
+    participant A as Agent session A
+    participant B as Agent session B
+    participant CC as Control center remote
+    participant R@{ "type": "collections" } as Project code repository
+
+    Note over A,R: 1. Each session starts
+    CC->>A: Pull handoffs and notes
+    CC->>B: Pull handoffs and notes
+    A->>A: Read the fix-retry-logic handoff
+    B->>B: Read the add-csv-export handoff
+
+    Note over A,R: 2. Each session works in its own worktree
+    R->>A: Fetch code into the fix-retry-logic worktree
+    R->>B: Fetch code into the add-csv-export worktree
+    A->>A: Edit code and update the handoff
+    B->>B: Edit code and update the handoff
+    A-->>R: Push code, only when you ask
+
+    Note over A,R: 3. Each session ends: exit, /clear, /resume, or logout
+    A->>CC: Push handoffs and notes
+    B->>CC: Push handoffs and notes
+```
+
+**How to read the diagram**
+
+| In the diagram | What it means |
+|---|---|
+| Column | A participant: an agent session, or a Git remote that stores work. |
+| 🗂️ Stacked column | One or more code repositories. A project can span many. |
+| ➡️ Solid arrow between columns | Happens without asking you. A hook or a project command runs it. |
+| ⇢ Dotted arrow | Happens only when you ask for it. |
+| 🔁 Arrow that loops back to its own column | Work inside the session. Nothing leaves the machine. |
+| Numbered note | The phase of a session: start, work, end. |
+
+Sessions A and B run at the same time. The diagram lists their steps
+one after the other only because a diagram must draw them in some
+order. A later session, on any machine, starts at phase 1 with the
+latest handoffs. That is how work continues across days and machines.
+
+#### When sync runs
+
+| Event | Sync |
+|---|---|
+| ▶️ A session starts: new, resumed, after `/clear`, or after the context is compacted | Pull the latest handoffs and notes |
+| ⏹️ A session ends: exit, `/clear`, `/resume`, or logout | Push handoffs and notes |
+| 📋 `/start-project` or `/finish-project` runs | Push handoffs and notes |
+
+`/clear` and `/resume` end one session and start the next, so they push
+and then pull. You do not need to quit an agent to sync. Each push
+also includes the documents that every other session on the machine
+has written. Claude Code runs these hooks. opencode does not sync
+automatically yet.
+
+### What each part holds
+
+| Part | What it holds | When it changes | Synced |
+|---|---|---|---|
+| **Project manifest** | The project's repositories and status | When a project starts and finishes | ✅ |
+| **Handoff** | One task: goal, state, decisions, dead ends, next steps | While the agent works, and before the session ends | ✅ |
+| **Notes** | Project knowledge that outlasts one task: designs, plans, system facts | When an agent learns something lasting | ✅ |
+| **Global memory** | Preferences and facts for every project | When a lesson applies beyond one project | ✅ |
+| **Code** | Clones and task worktrees | While agents work | ❌ Cloned again from the manifest |
+
+### Where agents can write
+
+Each project keeps its code in its own folder. An agent can write only
+inside the project where its session runs.
+
+```text
+projects/
+├── billing-api/                  ← sessions A and B run here
+│   ├── PROJECT.md
+│   ├── handoffs/
+│   ├── notes/
+│   └── code/
+│       └── api/
+│           ├── main/             🔒 read-only reference checkout
+│           ├── fix-retry-logic/  ✏️  worktree for session A
+│           └── add-csv-export/   ✏️  worktree for session B
+└── docs-site/
+    └── code/                     🚫 blocked: another project
+```
+
+### Trackers (optional)
+
+A project can link to Linear, GitHub Issues, or Jira. Agents offer to
+update tickets when work starts and when a session ends. They never
+write to a tracker without your approval.
+
+## Daily use
+
+Run these commands in any agent session:
+
+| Command | What it does |
+|---|---|
+| `/start-project` | Creates a project, clones its repositories, and registers it. |
+| `/resume-project` | Pulls the latest documents, checks which branches have merged, and summarizes each active task. |
+| `/resume-project <task>` | Does the same, then continues that task from its handoff. |
+| `/finish-project` | Checks that no work is unpushed, records the outcome, saves lasting lessons to global memory, and deletes the project's code. |
+
+To start work on a repository, create a worktree for the task:
+
+```sh
+bin/wt-new <repo> <task-slug>
+```
+
+## Set up
+
+You need `git` and `jq`. The `gh` CLI is optional; with it, branch
+checks use pull request state.
+
+**First machine.**
+
+1. Create your own repository from this template ("Use this template"
+   on GitHub).
+2. Clone it. Any location works.
+3. Give the center a name that is unique on this machine:
+
+   ```sh
+   ./bin/bootstrap.sh --name <name>
+   ```
+
+4. Edit `AGENTS.md` and `guidelines/` to match how you work.
+
+**Each additional machine.**
 
 ```sh
 git clone <your-control-center-remote> ~/projects/agent-control-center
 cd ~/projects/agent-control-center
-./bin/bootstrap.sh   # checks deps, registers the center, wires hooks + links (idempotent)
+./bin/bootstrap.sh
 ```
 
-The name travels in the committed `.control-center` file, so no
-`--name` is needed on additional machines.
+The name is stored in the repository, so you do not need `--name`
+again. You can run `bootstrap.sh` again at any time; it is safe to
+repeat.
 
-Then, in any agent session: `/resume-project` to pick up existing work,
-or `/start-project` to begin something new.
+## Several control centers
 
-## Layout
+You can keep separate centers on one machine, for example `work` and
+`personal`. Create each one from this template with its own name. A
+session uses the center that it runs inside. Sync and the write guard
+cover every center on the machine. Add `--default` to `bootstrap.sh` to
+choose the center that sessions outside every center use.
 
-| Path | Committed | Purpose |
-|---|---|---|
-| `AGENTS.md` | yes | Global rules every agent session inherits |
-| `guidelines/` | yes | Writing and coding guidelines |
-| `skills/` | yes | Lifecycle skills: start / resume / finish project |
-| `memory/` | yes | Global memory (INDEX.md + topic files) |
-| `templates/` | yes | PROJECT.md, handoff, notes templates |
-| `bin/` | yes | Scripts: worktrees, branch status, path guard, sync, bootstrap |
-| `projects/INDEX.md` | yes | Registry of all projects |
-| `projects/<slug>/` | yes | Manifest, handoffs, notes — the durable record |
-| `projects/<slug>/code/` | **no** | Clones + worktrees — disposable, rebuilt from manifest |
+## Rules for agents
 
-## Project lifecycle
-
-- **/start-project** — asks for a name and repos (or a project to
-  extend), scaffolds the project directory from templates, blobless-clones
-  each repo into `code/<repo>/main`, registers it in `projects/INDEX.md`.
-- **/resume-project** — pulls this repo first (latest handoffs from any
-  machine), reads the manifest + handoffs + notes, reconciles `code/`
-  (re-clones anything missing), verifies each active handoff's branch
-  against git/PR state (`bin/branch-status`) and marks shipped work
-  done, then summarizes. Continues a task's Next Steps only when the
-  task is named: `/resume-project <task>`.
-- **/finish-project** — refuses to run if any worktree has uncommitted or
-  unpushed work; distills handoffs into the PROJECT.md outcome; promotes
-  durable learnings to global memory; deletes `code/`; marks the project
-  done.
-
-Worktrees are created per task with `bin/wt-new <repo> <task-slug>`. It
-binds the task's handoff to the new worktree (frontmatter `repo`,
-`branch`, `worktree`) and heals a legacy `worktree: none` binding. A
-handoff without a `worktree:` key is unbound — normal for setup and
-docs-only tasks.
-
-## Worktree isolation
-
-Agents working in the wrong worktree is the failure mode this repo is
-built against. Three layers:
-
-1. **Layout** — each project's checkouts live under its own `code/`
-   directory; wrong siblings are not one `cd ..` away.
-2. **Instruction** — `AGENTS.md` workspace rules (writes scoped to your
-   project, repo-relative paths in docs, `main` is read-only).
-3. **Mechanical** — `bin/guard-path.sh` scopes writes to the current
-   project's worktrees and blocks any file operation that resolves into
-   another project's `code/` tree, wired as a Claude Code PreToolUse
-   hook and an opencode `tool.execute.before` plugin. In bash commands
-   it vets both absolute and relative paths, and treats paths in
-   mutating commands (`rm`, `mv`, `sed -i`, redirects, …) as writes, so
-   `code/<repo>/main` stays a read-only reference. The project is taken
-   from the session's working directory, so a session may span its
-   project's worktrees without relaunching.
-
-## Writing guidelines
-
-`guidelines/writing.md` holds the writing rules for every agent. It
-combines ASD-STE100 plain-language rules with the model-neutral output
-rules from the Claude prompt-engineering docs.
-
-Some rules conflict between models: one model needs more progress
-updates, another needs fewer. `guidelines/models.md` has one section
-per model ID, and each model applies only its own section. The model
-reads its ID from its system prompt, so the right section applies in
-headless runs, in subagents, and after `/model`. (Claude Code hook
-inputs do not reliably include the model ID, so a hook cannot select
-the section.)
-
-`AGENTS.md` imports both files, so every Claude Code session loads
-them. `link.sh` adds both to opencode's `instructions` list.
-`guidelines/SOURCES.md` records the doc section behind each rule.
-
-## Sync
-
-`bin/sync.sh` keeps the remote current: `pull` at session start, `push`
-(scoped to `projects/` + `memory/` docs only) at session end, both wired
-via hooks by `bootstrap.sh`. A lock directory prevents concurrent
-sessions from racing.
-
-## Permission prompts
-
-Claude Code allow rules cannot match a command wrapped in a variable
-assignment (`CC=$(...)`), and every subcommand of a compound command
-must match a rule on its own. The skills therefore run the resolver
-bare, and two layers ship the rules:
-
-- `.claude/settings.json` (committed) allows the resolver for every
-  session rooted in a center repo.
-- `link.sh` merges per-machine allow rules for routine helper commands
-  (`wt-ls`, `wt-new`, bare `wt-prune` dry run, `sync.sh pull`) of every
-  registered center into `~/.claude/settings.json`.
-
-Mutating forms (`wt-prune --apply`, `sync.sh push`) still prompt on
-purpose.
+`AGENTS.md` holds the rules that every session follows: workspace
+limits, commit policy, handoff discipline, and how to share the machine
+with other sessions. `guidelines/` holds the writing and coding
+guidelines, including adjustments for each model.
