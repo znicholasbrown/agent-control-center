@@ -33,6 +33,9 @@ Two agents work on the same project at the same time, each on its own
 task. They can run on one machine or on different machines. Handoffs
 and notes sync through the control center's own Git remote. Code comes
 from the project's code repositories, and a project can have many.
+Agents update handoffs while they work. Sync runs each time a session
+starts or ends, which happens many times a day (see
+[When sync runs](#when-sync-runs)).
 
 ```mermaid
 sequenceDiagram
@@ -50,13 +53,11 @@ sequenceDiagram
     Note over A,R: 2. Each session works in its own worktree
     R->>A: Fetch code into the fix-retry-logic worktree
     R->>B: Fetch code into the add-csv-export worktree
-    A->>A: Edit code
-    B->>B: Edit code
+    A->>A: Edit code and update the handoff
+    B->>B: Edit code and update the handoff
     A-->>R: Push code, only when you ask
 
-    Note over A,R: 3. Each session ends
-    A->>A: Update the handoff
-    B->>B: Update the handoff
+    Note over A,R: 3. Each session ends: exit, /clear, /resume, or logout
     A->>CC: Push handoffs and notes
     B->>CC: Push handoffs and notes
 ```
@@ -77,12 +78,26 @@ one after the other only because a diagram must draw them in some
 order. A later session, on any machine, starts at phase 1 with the
 latest handoffs. That is how work continues across days and machines.
 
+#### When sync runs
+
+| Event | Sync |
+|---|---|
+| ▶️ A session starts: new, resumed, after `/clear`, or after the context is compacted | Pull the latest handoffs and notes |
+| ⏹️ A session ends: exit, `/clear`, `/resume`, or logout | Push handoffs and notes |
+| 📋 `/start-project` or `/finish-project` runs | Push handoffs and notes |
+
+`/clear` and `/resume` end one session and start the next, so they push
+and then pull. You do not need to quit an agent to sync. Each push
+also includes the documents that every other session on the machine
+has written. Claude Code runs these hooks. opencode does not sync
+automatically yet.
+
 ### What each part holds
 
 | Part | What it holds | When it changes | Synced |
 |---|---|---|---|
 | **Project manifest** | The project's repositories and status | When a project starts and finishes | ✅ |
-| **Handoff** | One task: goal, state, decisions, dead ends, next steps | Before every session ends | ✅ |
+| **Handoff** | One task: goal, state, decisions, dead ends, next steps | While the agent works, and before the session ends | ✅ |
 | **Notes** | Project knowledge that outlasts one task: designs, plans, system facts | When an agent learns something lasting | ✅ |
 | **Global memory** | Preferences and facts for every project | When a lesson applies beyond one project | ✅ |
 | **Code** | Clones and task worktrees | While agents work | ❌ Cloned again from the manifest |
