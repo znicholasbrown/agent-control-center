@@ -31,56 +31,51 @@ The agent's own memory and the repository's docs are enough for that.
 
 Two agents work on the same project at the same time, each on its own
 task. They can run on one machine or on different machines. Handoffs
-and notes sync through the control center's own Git remote. Code goes
-to the project's repository only when you ask.
+and notes sync through the control center's own Git remote. Code comes
+from the project's code repositories, and a project can have many.
 
 ```mermaid
 sequenceDiagram
     participant A as Agent session A
     participant B as Agent session B
     participant CC as Control center remote
-    participant R as Project repository
+    participant R@{ "type": "collections" } as Project code repository
 
     Note over A,R: 1. Each session starts
-    par Session A
-        CC->>A: Pull handoffs and notes
-        A->>A: Read the fix-retry-logic handoff
-    and Session B
-        CC->>B: Pull handoffs and notes
-        B->>B: Read the add-csv-export handoff
-    end
+    CC->>A: Pull handoffs and notes
+    CC->>B: Pull handoffs and notes
+    A->>A: Read the fix-retry-logic handoff
+    B->>B: Read the add-csv-export handoff
 
     Note over A,R: 2. Each session works in its own worktree
-    par Session A
-        A->>A: Edit code in the fix-retry-logic worktree
-        A-->>R: Push code, only when you ask
-    and Session B
-        B->>B: Edit code in the add-csv-export worktree
-    end
+    R->>A: Fetch code into the fix-retry-logic worktree
+    R->>B: Fetch code into the add-csv-export worktree
+    A->>A: Edit code
+    B->>B: Edit code
+    A-->>R: Push code, only when you ask
 
     Note over A,R: 3. Each session ends
-    par Session A
-        A->>A: Update the handoff
-        A->>CC: Push handoffs and notes
-    and Session B
-        B->>B: Update the handoff
-        B->>CC: Push handoffs and notes
-    end
+    A->>A: Update the handoff
+    B->>B: Update the handoff
+    A->>CC: Push handoffs and notes
+    B->>CC: Push handoffs and notes
 ```
 
 **How to read the diagram**
 
 | In the diagram | What it means |
 |---|---|
-| Column | A participant: an agent session, or a Git remote that stores its work. |
-| ➡️ Solid arrow between columns | Automatic sync. A hook runs it when a session starts or ends. |
-| ⇢ Dotted arrow | An action that happens only when you ask for it. |
+| Column | A participant: an agent session, or a Git remote that stores work. |
+| 🗂️ Stacked column | One or more code repositories. A project can span many. |
+| ➡️ Solid arrow between columns | Happens without asking you. A hook or a project command runs it. |
+| ⇢ Dotted arrow | Happens only when you ask for it. |
 | 🔁 Arrow that loops back to its own column | Work inside the session. Nothing leaves the machine. |
-| `par` box | The two sessions do these steps at the same time. |
 | Numbered note | The phase of a session: start, work, end. |
 
-A later session, on any machine, starts at phase 1 with the latest
-handoffs. That is how work continues across days and machines.
+Sessions A and B run at the same time. The diagram lists their steps
+one after the other only because a diagram must draw them in some
+order. A later session, on any machine, starts at phase 1 with the
+latest handoffs. That is how work continues across days and machines.
 
 ### What each part holds
 
